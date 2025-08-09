@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine, Base
-from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency
-from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies
+from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency
+from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies
 import json
 import random
 from datetime import datetime, timedelta
@@ -40,6 +40,7 @@ async def startup_event():
         seed_science_topics(db)
         seed_social_topics(db)
         seed_math_dependencies(db)
+        seed_science_dependencies(db)
     finally:
         db.close()
 
@@ -221,6 +222,70 @@ def get_learning_path(topic_name: str, db: Session = Depends(get_db)):
         "target_topic": topic_name,
         "next_topics": next_topics,
         "learning_path": prerequisites + [topic_name] + next_topics
+    }
+
+# 理科の学習依存関係を活用したAPI
+@app.get("/science/prerequisites/{topic_name}")
+def get_science_prerequisites(topic_name: str, db: Session = Depends(get_db)):
+    """指定された理科単元の前提単元を取得（複数前提対応）"""
+    dependency = db.query(ScienceDependency).filter(ScienceDependency.topic_name == topic_name).first()
+    if not dependency:
+        return {"prerequisites": [], "message": "単元が見つかりません"}
+    
+    # セミコロン区切りの前提単元を分割
+    prerequisite_list = []
+    if dependency.prerequisite_topics:
+        prerequisite_topics = [t.strip() for t in dependency.prerequisite_topics.split(";") if t.strip()]
+        
+        for prereq_topic in prerequisite_topics:
+            prereq_dep = db.query(ScienceDependency).filter(ScienceDependency.topic_name == prereq_topic).first()
+            if prereq_dep:
+                prerequisite_list.append({
+                    "topic_name": prereq_topic,
+                    "domain": prereq_dep.domain,
+                    "topic_id": prereq_dep.topic_id
+                })
+    
+    return {
+        "target_topic": topic_name,
+        "domain": dependency.domain,
+        "prerequisites": prerequisite_list,
+        "prerequisite_topics": [p["topic_name"] for p in prerequisite_list]
+    }
+
+@app.get("/science/learning-path/{topic_name}")
+def get_science_learning_path(topic_name: str, db: Session = Depends(get_db)):
+    """指定された理科単元の学習パス（前提→目標→次）を取得（複数対応）"""
+    dependency = db.query(ScienceDependency).filter(ScienceDependency.topic_name == topic_name).first()
+    if not dependency:
+        return {"message": "単元が見つかりません"}
+    
+    # 前提単元を取得（複数対応）
+    all_prerequisites = []
+    if dependency.prerequisite_topics:
+        prerequisite_topics = [t.strip() for t in dependency.prerequisite_topics.split(";") if t.strip()]
+        
+        for prereq_topic in prerequisite_topics:
+            prereq_dep = db.query(ScienceDependency).filter(ScienceDependency.topic_name == prereq_topic).first()
+            if prereq_dep:
+                all_prerequisites.append(prereq_topic)
+    
+    # 次に学ぶ単元を取得（複数対応）
+    all_next_topics = []
+    if dependency.next_topics:
+        next_topics = [t.strip() for t in dependency.next_topics.split(";") if t.strip()]
+        
+        for next_topic in next_topics:
+            next_dep = db.query(ScienceDependency).filter(ScienceDependency.topic_name == next_topic).first()
+            if next_dep:
+                all_next_topics.append(next_topic)
+    
+    return {
+        "prerequisites": all_prerequisites,
+        "target_topic": topic_name,
+        "domain": dependency.domain,
+        "next_topics": all_next_topics,
+        "learning_path": all_prerequisites + [topic_name] + all_next_topics
     }
 
 

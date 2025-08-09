@@ -94,7 +94,22 @@ class MathDependency(Base):
     # リレーション
     math_topic = relationship("MathTopic", back_populates="dependencies")
 
+class ScienceDependency(Base):
+    __tablename__ = "science_dependencies"
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    domain: Mapped[str] = Column(String(32), nullable=False)  # 物理/化学/生物/地学/総合
+    topic_name: Mapped[str] = Column(String(255), nullable=False)  # 単元名
+    prerequisite_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 前提単元（セミコロン区切り、NULL=前提なし）
+    next_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 次に学ぶ単元（セミコロン区切り、NULL=最終単元）
+    topic_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("science_topics.id"), nullable=True)  # science_topicsとの紐付け
+
+    # リレーション
+    science_topic = relationship("ScienceTopic", back_populates="dependencies")
+
 # MathTopicにリレーションを追加
 MathTopic.dependencies = relationship("MathDependency", back_populates="math_topic")
+
+# ScienceTopicにリレーションを追加
+ScienceTopic.dependencies = relationship("ScienceDependency", back_populates="science_topic")
 
 
