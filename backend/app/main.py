@@ -4,8 +4,8 @@ from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from .db import Base, engine, get_db
-from .models import Question, Attempt, Mastery
-from .seed import seed_basic
+from .models import Question, Attempt, Mastery, MathTopic
+from .seed import seed_basic, seed_math_topics
 from datetime import datetime, timedelta
 
 app = FastAPI(title="ZeroBasics API (Mock)")
@@ -32,6 +32,7 @@ def on_startup():
     db = next(db_gen)
     try:
         seed_basic(db)
+        seed_math_topics(db)
     finally:
         try:
             next(db_gen)

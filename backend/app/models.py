@@ -39,3 +39,10 @@ class Mastery(Base):
     )
 
 
+class MathTopic(Base):
+    __tablename__ = "math_topics"
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    name: Mapped[str] = Column(String(255), nullable=False)
+    difficulty: Mapped[str] = Column(String(16), nullable=False)  # 基礎 / 応用 / 発展
+
+
