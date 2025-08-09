@@ -28,8 +28,15 @@ class AnswerIn(BaseModel):
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    with next(get_db()) as db:
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
         seed_basic(db)
+    finally:
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
 
 
 @app.get("/health")
