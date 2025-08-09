@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 def seed_basic(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM questions LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(Question).count() > 0:
             return
     except Exception:
@@ -44,6 +47,9 @@ def seed_basic(db: Session):
 def seed_math_topics(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM math_topics LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(MathTopic).count() > 0:
             return
     except Exception:
@@ -158,6 +164,9 @@ def seed_math_topics(db: Session):
 def seed_math_dependencies(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM math_dependencies LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(MathDependency).count() > 0:
             return
     except Exception:
@@ -282,6 +291,9 @@ def seed_math_dependencies(db: Session):
 def seed_science_topics(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM science_topics LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(ScienceTopic).count() > 0:
             return
     except Exception:
@@ -401,6 +413,9 @@ def seed_science_topics(db: Session):
 def seed_science_dependencies(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM science_dependencies LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(ScienceDependency).count() > 0:
             return
     except Exception:
@@ -531,6 +546,9 @@ def seed_science_dependencies(db: Session):
 def seed_social_dependencies(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM social_dependencies LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(SocialDependency).count() > 0:
             return
     except Exception:
@@ -660,6 +678,9 @@ def seed_social_dependencies(db: Session):
 def seed_social_topics(db: Session):
     # Check if table exists and has data
     try:
+        # First check if table exists
+        db.execute("SELECT 1 FROM social_topics LIMIT 1")
+        # If we get here, table exists, so check if it has data
         if db.query(SocialTopic).count() > 0:
             return
     except Exception:

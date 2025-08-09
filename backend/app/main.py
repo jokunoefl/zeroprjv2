@@ -35,10 +35,24 @@ async def startup_event():
     # Create all tables first
     Base.metadata.create_all(bind=engine)
     
-    # Small delay to ensure tables are created
+    # Ensure tables are created by checking table existence
     import asyncio
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.5)  # Increased delay
     
+    # Verify table creation by attempting a simple query
+    db = SessionLocal()
+    try:
+        # Test if tables exist by checking if we can query them
+        db.execute("SELECT 1 FROM questions LIMIT 1")
+        db.commit()
+    except Exception:
+        # Tables don't exist yet, wait a bit more
+        await asyncio.sleep(1.0)
+        db.rollback()
+    finally:
+        db.close()
+    
+    # Now proceed with seeding
     db = SessionLocal()
     try:
         seed_basic(db)
