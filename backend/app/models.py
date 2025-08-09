@@ -54,3 +54,11 @@ class ScienceTopic(Base):
     difficulty: Mapped[str] = Column(String(16), nullable=False)  # 基礎/応用/発展
 
 
+class SocialTopic(Base):
+    __tablename__ = "social_topics"
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    domain: Mapped[str] = Column(String(32), nullable=False)  # 地理/歴史/公民/総合
+    name: Mapped[str] = Column(String(255), nullable=False)
+    difficulty: Mapped[str] = Column(String(16), nullable=False)  # 基礎/応用/発展
+
+
