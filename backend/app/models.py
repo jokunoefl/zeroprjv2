@@ -112,4 +112,19 @@ MathTopic.dependencies = relationship("MathDependency", back_populates="math_top
 # ScienceTopicにリレーションを追加
 ScienceTopic.dependencies = relationship("ScienceDependency", back_populates="science_topic")
 
+class SocialDependency(Base):
+    __tablename__ = "social_dependencies"
+    id: Mapped[int] = Column(Integer, primary_key=True)
+    domain: Mapped[str] = Column(String(32), nullable=False)  # 地理/歴史/公民/総合
+    topic_name: Mapped[str] = Column(String(255), nullable=False)  # 単元名
+    prerequisite_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 前提単元（セミコロン区切り、NULL=前提なし）
+    next_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 次に学ぶ単元（セミコロン区切り、NULL=最終単元）
+    topic_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("social_topics.id"), nullable=True)  # social_topicsとの紐付け
+
+    # リレーション
+    social_topic = relationship("SocialTopic", back_populates="dependencies")
+
+# SocialTopicにリレーションを追加
+SocialTopic.dependencies = relationship("SocialDependency", back_populates="social_topic")
+
 

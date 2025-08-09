@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine, Base
-from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency
-from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies
+from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency
+from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies, seed_social_dependencies
 import json
 import random
 from datetime import datetime, timedelta
@@ -41,6 +41,7 @@ async def startup_event():
         seed_social_topics(db)
         seed_math_dependencies(db)
         seed_science_dependencies(db)
+        seed_social_dependencies(db)
     finally:
         db.close()
 
