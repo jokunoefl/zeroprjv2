@@ -50,33 +50,22 @@ export function TableHead({ children }: any){ return <th className="p-3 font-med
 export function TableBody({ children }: any){ return <tbody>{children}</tbody>; }
 export function TableCell({ children, className }: any){ return <td className={cn("p-3", className)}>{children}</td>; }
 
+const TabsContext = React.createContext<{ value: string; onValueChange?: (v: string)=>void }>({ value: "" });
 function Tabs({ value, onValueChange, children, className }: any){
-  return (
-    <div className={className}>
-      {React.Children.map(children, (c: any) => (
-        React.isValidElement(c) && typeof c.type === 'function'
-          ? React.cloneElement(c, { activeValue: value, onValueChange })
-          : c
-      ))}
-    </div>
-  );
+  return <div className={className}><TabsContext.Provider value={{ value, onValueChange }}>{children}</TabsContext.Provider></div>;
 }
-function TabsList({ children, className, activeValue, onValueChange }: any){
-  return (
-    <div className={cn("inline-flex gap-2 p-1 bg-muted rounded-xl", className)}>
-      {React.Children.map(children, (c: any) => (
-        React.isValidElement(c) && typeof c.type === 'function'
-          ? React.cloneElement(c, { activeValue, onValueChange })
-          : c
-      ))}
-    </div>
-  );
+function TabsList({ children, className }: any){
+  return <div className={cn("inline-flex gap-2 p-1 bg-muted rounded-xl", className)}>{children}</div>;
 }
-function TabsTrigger({ children, value, activeValue, onValueChange, className }: any){
+function TabsTrigger({ children, value, className }: any){
+  const { value: activeValue, onValueChange } = React.useContext(TabsContext);
   const active = value === activeValue;
-  return <button type="button" onClick={()=>onValueChange?.(value)} data-value={value} className={cn("h-8 px-3 rounded-lg text-sm", active ? "bg-card border" : "text-muted-foreground", className)}>{children}</button>;
+  return <button type="button" onClick={()=>onValueChange?.(value)} className={cn("h-8 px-3 rounded-lg text-sm", active ? "bg-card border" : "text-muted-foreground", className)}>{children}</button>;
 }
-function TabsContent({ children, value, activeValue }: any){ return value === activeValue ? <div>{children}</div> : null; }
+function TabsContent({ children, value }: any){
+  const { value: activeValue } = React.useContext(TabsContext);
+  return value === activeValue ? <div>{children}</div> : null;
+}
 
 function Switch({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (v: boolean)=>void }){
   return (
@@ -99,15 +88,14 @@ function DialogContent({ className, children }: any){ return <div className={cn(
 function DialogHeader({ children }: any){ return <div className="mb-2">{children}</div>; }
 function DialogTitle({ className, children }: any){ return <div className={cn("text-lg font-semibold", className)}>{children}</div>; }
 
+const SelectContext = React.createContext<{ value: any; onValueChange?: (v:any)=>void; open: boolean; setOpen: (b:boolean)=>void }>({ value: undefined, onValueChange: undefined, open: false, setOpen: ()=>{} });
 function Select({ value, onValueChange, children }: any){
   const [open, setOpen] = React.useState(false);
   return (
     <div className="relative inline-block" data-value={value}>
-      {React.Children.map(children, (c:any)=> (
-        React.isValidElement(c)
-          ? React.cloneElement(c, { value, onValueChange, open, setOpen })
-          : c
-      ))}
+      <SelectContext.Provider value={{ value, onValueChange, open, setOpen }}>
+        {children}
+      </SelectContext.Provider>
     </div>
   );
 }
@@ -116,16 +104,17 @@ function roleLabel(v?: string){
   if(v === 'parent') return '保護者';
   return v || '';
 }
-function SelectTrigger({ className, children, value, open, setOpen }: any){
+function SelectTrigger({ className, children }: any){
+  const { value, open, setOpen } = React.useContext(SelectContext);
   return (
     <button type="button" onClick={()=>setOpen(!open)} className={cn("border rounded-md h-8 px-3 inline-flex items-center justify-between gap-2 min-w-[110px] bg-card", className)}>
       <span className="text-sm">{roleLabel(value) || (children ?? '')}</span>
     </button>
   );
 }
-function SelectValue({ placeholder, value }: any){ return <span>{roleLabel(value) || placeholder}</span>; }
-function SelectContent({ children, open }: any){ if(!open) return null; return <div className="absolute z-50 mt-2 bg-card border rounded-md shadow p-1 w-full">{children}</div>; }
-function SelectItem({ value, children, onValueChange, setOpen }: any){ return <div className="px-3 py-2 rounded hover:bg-muted cursor-pointer" onClick={()=>{ onValueChange?.(value); setOpen?.(false); }}>{children}</div>; }
+function SelectValue({ placeholder }: any){ const { value } = React.useContext(SelectContext); return <span>{roleLabel(value) || placeholder}</span>; }
+function SelectContent({ children }: any){ const { open } = React.useContext(SelectContext); if(!open) return null; return <div className="absolute z-50 mt-2 bg-card border rounded-md shadow p-1 w-full">{children}</div>; }
+function SelectItem({ value, children }: any){ const { onValueChange, setOpen } = React.useContext(SelectContext); return <div className="px-3 py-2 rounded hover:bg-muted cursor-pointer" onClick={()=>{ onValueChange?.(value); setOpen(false); }}>{children}</div>; }
 
 const API_BASE = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_API_BASE) || "";
 let AUTH_TOKEN: string | null = null;
