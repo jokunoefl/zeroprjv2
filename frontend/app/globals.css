@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Design tokens */
+:root {
+  --background: 255 255 255;
+  --foreground: 23 23 23;
+  --muted: 246 246 246;
+  --muted-foreground: 113 113 122;
+  --border: 228 228 231;
+  --card: 255 255 255;
+  --card-foreground: 23 23 23;
+  --primary: 24 24 27;
+  --primary-foreground: 250 250 250;
+  --secondary: 243 244 246;
+  --secondary-foreground: 24 24 27;
+}
+
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+  --color-muted: rgb(var(--muted));
+  --color-muted-foreground: rgb(var(--muted-foreground));
+  --color-border: rgb(var(--border));
+  --color-card: rgb(var(--card));
+  --color-card-foreground: rgb(var(--card-foreground));
+  --color-primary: rgb(var(--primary));
+  --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-secondary: rgb(var(--secondary));
+  --color-secondary-foreground: rgb(var(--secondary-foreground));
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 10 10 10;
+    --foreground: 237 237 237;
+    --muted: 24 24 27;
+    --muted-foreground: 161 161 170;
+    --border: 39 39 42;
+    --card: 15 15 15;
+    --card-foreground: 237 237 237;
+    --primary: 250 250 250;
+    --primary-foreground: 24 24 27;
+    --secondary: 39 39 42;
+    --secondary-foreground: 250 250 250;
+  }
+}
+
+/* Base */
+html, body {
+  height: 100%;
+}
+
+body {
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+}
+
+/* Utility: border color token */
+.border {
+  border-color: rgb(var(--border));
+}
+
