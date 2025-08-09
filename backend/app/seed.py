@@ -4,8 +4,13 @@ import json
 from datetime import datetime, timedelta
 
 def seed_basic(db: Session):
-    if db.query(Question).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(Question).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     questions = [
         Question(
             subject="算数",
@@ -37,8 +42,13 @@ def seed_basic(db: Session):
     db.commit()
 
 def seed_math_topics(db: Session):
-    if db.query(MathTopic).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(MathTopic).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     rows = [
         (1, "整数の範囲", "基礎"),
         (2, "小数", "基礎"),
@@ -146,8 +156,13 @@ def seed_math_topics(db: Session):
     db.commit()
 
 def seed_math_dependencies(db: Session):
-    if db.query(MathDependency).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(MathDependency).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     dependencies = [
         (1, "整数の範囲", None, "小数"),
         (2, "小数", "整数の範囲", "分数"),
@@ -265,8 +280,13 @@ def seed_math_dependencies(db: Session):
     db.commit()
 
 def seed_science_topics(db: Session):
-    if db.query(ScienceTopic).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(ScienceTopic).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     rows = [
         # 物理 1-25
         (1, "物理", "力と運動の基礎", "基礎"),
@@ -379,8 +399,13 @@ def seed_science_topics(db: Session):
     db.commit()
 
 def seed_science_dependencies(db: Session):
-    if db.query(ScienceDependency).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(ScienceDependency).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     dependencies = [
         # 物理 1-20
         (1, "物理", "光の性質（反射・屈折）", "観察記録の取り方; 質量・体積の測定", "光の作図（鏡・レンズ）"),
@@ -504,8 +529,13 @@ def seed_science_dependencies(db: Session):
     db.commit()
 
 def seed_social_dependencies(db: Session):
-    if db.query(SocialDependency).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(SocialDependency).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     dependencies = [
         # 地理 1-25
         (1, "地理", "日本の都道府県と県庁所在地", "", "日本の地方区分（8地方区分）"),
@@ -628,8 +658,13 @@ def seed_social_dependencies(db: Session):
     db.commit()
 
 def seed_social_topics(db: Session):
-    if db.query(SocialTopic).count() > 0:
-        return
+    # Check if table exists and has data
+    try:
+        if db.query(SocialTopic).count() > 0:
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
     rows = [
         # 地理 1-25
         (1, "地理", "日本の都道府県と県庁所在地", "基礎"),

@@ -32,7 +32,13 @@ def get_db():
 
 @app.on_event("startup")
 async def startup_event():
+    # Create all tables first
     Base.metadata.create_all(bind=engine)
+    
+    # Small delay to ensure tables are created
+    import asyncio
+    await asyncio.sleep(0.1)
+    
     db = SessionLocal()
     try:
         seed_basic(db)
@@ -42,6 +48,9 @@ async def startup_event():
         seed_math_dependencies(db)
         seed_science_dependencies(db)
         seed_social_dependencies(db)
+    except Exception as e:
+        print(f"Error during seeding: {e}")
+        # Continue startup even if seeding fails
     finally:
         db.close()
 
