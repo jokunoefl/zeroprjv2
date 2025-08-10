@@ -230,12 +230,16 @@ class TestResultAnalyzer:
             return self._generate_dummy_analysis_from_pdf(pdf_file_path)
         
         try:
-            # PDFファイルを読み込み
-            with open(pdf_file_path, 'rb') as pdf_file:
-                pdf_content = pdf_file.read()
+            # まずPDFからテキストを抽出して内容を確認
+            try:
+                text_content = self.extract_text_from_pdf(pdf_file_path)
+                print(f"PDFから抽出されたテキスト: {text_content[:200]}...")
+            except Exception as e:
+                print(f"PDFテキスト抽出エラー: {e}")
+                text_content = "PDFファイルの内容を読み取れませんでした。"
             
-            # AI分析用のプロンプトを作成
-            prompt = self._create_pdf_analysis_prompt()
+            # AI分析用のプロンプトを作成（テキスト内容を含める）
+            prompt = self._create_pdf_analysis_prompt_with_content(text_content)
             
             response = openai.ChatCompletion.create(
                 model="gpt-4o",
@@ -243,7 +247,6 @@ class TestResultAnalyzer:
                     {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                     {"role": "user", "content": prompt}
                 ],
-                files=[{"file": pdf_content, "filename": "test_result.pdf"}],
                 max_tokens=4000,
                 temperature=0.7
             )
@@ -251,7 +254,7 @@ class TestResultAnalyzer:
             analysis_text = response.choices[0].message.content
             
             # 分析結果を構造化
-            return self._parse_pdf_analysis(analysis_text, pdf_file_path)
+            return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
             
         except Exception as e:
             print(f"PDF直接分析エラー: {e}")
@@ -428,10 +431,15 @@ class TestResultAnalyzer:
         
         return analysis
 
-    def _create_pdf_analysis_prompt(self) -> str:
-        """PDF直接分析用のプロンプトを作成"""
-        return """
-このPDFファイルはテスト結果です。以下の観点から詳細な分析を行い、具体的で実行可能な改善策を提案してください：
+    def _create_pdf_analysis_prompt_with_content(self, text_content: str) -> str:
+        """PDF内容を含む分析用のプロンプトを作成"""
+        return f"""
+以下のPDFファイルから抽出されたテスト結果の内容を分析してください：
+
+## PDFファイルの内容
+```
+{text_content}
+```
 
 ## 分析要求
 以下の観点から詳細な分析を行い、具体的で実行可能な改善策を提案してください：
@@ -500,16 +508,23 @@ class TestResultAnalyzer:
 ### 学習スケジュール例
 [具体的な時間配分と計画]
 
+**重要**: 上記のPDF内容を具体的に参照して分析してください。内容が見えない場合は、その旨を明記してください。
+
 各項目は具体的で実行可能な内容にしてください。
 """
 
-    def _parse_pdf_analysis(self, analysis_text: str, pdf_file_path: str) -> Dict:
+    def _create_pdf_analysis_prompt(self) -> str:
+        """PDF直接分析用のプロンプトを作成（後方互換性のため）"""
+        return self._create_pdf_analysis_prompt_with_content("PDFファイルの内容を読み取れませんでした。")
+
+    def _parse_pdf_analysis(self, analysis_text: str, pdf_file_path: str, text_content: str = "") -> Dict:
         """PDF分析結果を構造化"""
         # 分析結果を構造化
         return {
             'overall_analysis': analysis_text,
             'source_file': pdf_file_path,
-            'analysis_method': 'PDF直接分析',
+            'analysis_method': 'PDF内容分析',
+            'extracted_content': text_content[:500] + "..." if len(text_content) > 500 else text_content,
             'topics': [
                 {
                     'topic': 'PDF分析結果',
@@ -517,7 +532,7 @@ class TestResultAnalyzer:
                     'total_count': 0,
                     'score_percentage': 0.0,
                     'weakness_analysis': analysis_text,
-                    'improvement_advice': 'PDFファイルから直接分析された結果です。'
+                    'improvement_advice': 'PDFファイルの内容に基づいて分析された結果です。'
                 }
             ]
         }
@@ -546,6 +561,7 @@ PDFファイル（{pdf_file_path}）のテスト結果を分析しました。
 """,
             'source_file': pdf_file_path,
             'analysis_method': 'ダミー分析',
+            'extracted_content': 'PDFファイルの内容を読み取れませんでした。',
             'topics': [
                 {
                     'topic': 'PDF分析',
