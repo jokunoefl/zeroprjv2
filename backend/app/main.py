@@ -145,6 +145,38 @@ def init_database(db: Session = Depends(get_db)):
         print(f"General initialization error: {e}")
         return {"error": f"Database initialization failed: {str(e)}"}
 
+@app.post("/init-db-simple")
+def init_database_simple(db: Session = Depends(get_db)):
+    """シンプルなデータベース初期化エンドポイント"""
+    try:
+        print("Starting simple database initialization...")
+        
+        # Create tables
+        Base.metadata.create_all(bind=engine)
+        print("Tables created successfully")
+        
+        # Seed the database
+        seed_basic(db)
+        print("Basic seeding completed")
+        seed_math_topics(db)
+        print("Math topics seeded")
+        seed_science_topics(db)
+        print("Science topics seeded")
+        seed_social_topics(db)
+        print("Social topics seeded")
+        seed_math_dependencies(db)
+        print("Math dependencies seeded")
+        seed_science_dependencies(db)
+        print("Science dependencies seeded")
+        seed_social_dependencies(db)
+        print("Social dependencies seeded")
+        
+        return {"message": "Database initialized successfully"}
+        
+    except Exception as e:
+        print(f"Error during initialization: {e}")
+        return {"error": f"Database initialization failed: {str(e)}"}
+
 @app.get("/check-tables")
 def check_tables(db: Session = Depends(get_db)):
     """テーブルの存在を確認するエンドポイント"""
