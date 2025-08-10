@@ -38,10 +38,28 @@ def get_db():
 async def startup_event():
     print("Starting database initialization...")
     
-    # Create all tables first (simplified for faster startup)
+    # Create all tables first (including test result tables)
     try:
         Base.metadata.create_all(bind=engine)
         print("Tables created successfully")
+        
+        # Verify test result tables specifically
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1 FROM test_results LIMIT 1"))
+            print("✅ test_results table exists")
+        except Exception:
+            print("⚠️  test_results table not found, will be created")
+        
+        try:
+            db.execute(text("SELECT 1 FROM test_result_details LIMIT 1"))
+            print("✅ test_result_details table exists")
+        except Exception:
+            print("⚠️  test_result_details table not found, will be created")
+        
+        db.close()
+        
     except Exception as e:
         print(f"Error creating tables: {e}")
         # Continue startup even if table creation fails
