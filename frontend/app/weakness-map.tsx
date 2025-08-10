@@ -1,5 +1,6 @@
 "use client";
 import React, { useMemo, useState, useEffect } from "react";
+import Link from "next/link";
 
 // ====== 既存：汎用GET API関数・取得ユーティリティ ======
 interface ApiResponse {
@@ -612,6 +613,12 @@ export default function App(){
           >
             社会
           </button>
+          <Link 
+            href="/admin"
+            className="px-3 py-1 rounded-lg text-sm bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+          >
+            管理者
+          </Link>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
