@@ -285,17 +285,37 @@ def debug_create_tables():
         Base.metadata.create_all(bind=engine)
         print("Debug: Base.metadata.create_all completed")
         
-        # List all tables
+        # List all tables in all schemas
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            result = db.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+            # Check current schema
+            result = db.execute(text("SELECT current_schema()"))
+            current_schema = result.fetchone()[0]
+            print(f"Debug: Current schema: {current_schema}")
+            
+            # List all tables in current schema
+            result = db.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()"))
             tables = [row[0] for row in result.fetchall()]
+            print(f"Debug: Found tables in current schema: {tables}")
+            
+            # Also check public schema
+            result = db.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+            public_tables = [row[0] for row in result.fetchall()]
+            print(f"Debug: Found tables in public schema: {public_tables}")
+            
+            # Check all schemas
+            result = db.execute(text("SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('information_schema', 'pg_catalog')"))
+            all_tables = [f"{row[0]}.{row[1]}" for row in result.fetchall()]
+            print(f"Debug: Found tables in all schemas: {all_tables}")
+            
             db.commit()
-            print(f"Debug: Found tables: {tables}")
             return {
                 "message": "Tables created successfully",
-                "tables_found": tables,
+                "current_schema": current_schema,
+                "tables_in_current_schema": tables,
+                "tables_in_public_schema": public_tables,
+                "all_tables": all_tables,
                 "database_url": database_url.replace("postgresql://", "postgresql://***") if "postgresql://" in database_url else database_url
             }
         except Exception as e:
