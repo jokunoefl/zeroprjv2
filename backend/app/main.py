@@ -280,10 +280,24 @@ def debug_create_tables():
         database_url = os.getenv("DATABASE_URL", "Not set")
         print(f"Debug: DATABASE_URL = {database_url}")
         
-        # Try to create tables
+        # Check if models are properly imported
+        from app.models import Question, Mastery, Attempt
+        print(f"Debug: Models imported successfully")
+        print(f"Debug: Question table name: {Question.__tablename__}")
+        print(f"Debug: Mastery table name: {Mastery.__tablename__}")
+        print(f"Debug: Attempt table name: {Attempt.__tablename__}")
+        
+        # Check Base metadata
+        print(f"Debug: Base metadata tables: {list(Base.metadata.tables.keys())}")
+        
+        # Try to create tables with explicit error handling
         print("Debug: Calling Base.metadata.create_all...")
-        Base.metadata.create_all(bind=engine)
-        print("Debug: Base.metadata.create_all completed")
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("Debug: Base.metadata.create_all completed without exception")
+        except Exception as create_error:
+            print(f"Debug: Error during create_all: {create_error}")
+            return {"error": f"Error during table creation: {str(create_error)}"}
         
         # List all tables in all schemas
         from sqlalchemy import text
@@ -316,6 +330,8 @@ def debug_create_tables():
                 "tables_in_current_schema": tables,
                 "tables_in_public_schema": public_tables,
                 "all_tables": all_tables,
+                "models_imported": True,
+                "base_tables": list(Base.metadata.tables.keys()),
                 "database_url": database_url.replace("postgresql://", "postgresql://***") if "postgresql://" in database_url else database_url
             }
         except Exception as e:
