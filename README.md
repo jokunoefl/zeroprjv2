@@ -32,3 +32,4 @@ npm run dev
 - Env: `NEXT_PUBLIC_API_BASE` → RenderのAPI URL
 - Build: `npm run build`
 - Start: `npm start`
+# Force Vercel rebuild
