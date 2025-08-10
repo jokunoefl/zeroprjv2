@@ -202,12 +202,12 @@ class TestResultAnalyzer:
             prompt = self._create_analysis_prompt(test_result)
             
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。テスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=2000,
+                max_tokens=3000,
                 temperature=0.7
             )
             

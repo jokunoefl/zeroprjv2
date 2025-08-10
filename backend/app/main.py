@@ -9,7 +9,7 @@ import shutil
 from .db import SessionLocal, engine, Base
 from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail
 from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies, seed_social_dependencies
-# from .test_analyzer import TestResultAnalyzer  # 一時的に無効化
+from .test_analyzer import TestResultAnalyzer
 import json
 import random
 from datetime import datetime, timedelta
@@ -443,130 +443,89 @@ async def upload_test_result(
         if file.size and file.size > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="ファイルサイズが大きすぎます（10MB以下にしてください）")
         
-        # 簡易版：ファイルを受け取ってダミーデータを返す
-        test_result = TestResult(
-            user_id=user_id,
-            subject=subject or "算数",
-            test_name=test_name or "テスト結果",
-            total_score=85,
-            max_score=100,
-            score_percentage=85.0,
-            file_path=file.filename,
-            analysis_status="completed"
-        )
+        # 一時ファイルに保存
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+            temp_file_path = temp_file.name
         
-        db.add(test_result)
-        db.flush()
-        
-        # ダミーの単元別詳細
-        dummy_topics = [
-            {
-                "topic": "割合",
-                "correct_count": 8,
-                "total_count": 10,
-                "score_percentage": 80.0,
-                "weakness_analysis": "基本的な理解はできていますが、応用問題に課題があります。",
-                "improvement_advice": "応用問題を多く解いて実践力を向上させてください。"
-            },
-            {
-                "topic": "図形",
-                "correct_count": 9,
-                "total_count": 10,
-                "score_percentage": 90.0,
-                "weakness_analysis": "良好な成績です。",
-                "improvement_advice": "知識を維持し、さらに発展的な学習に取り組んでください。"
-            }
-        ]
-        
-        for topic_data in dummy_topics:
-            detail = TestResultDetail(
-                test_result_id=test_result.id,
-                topic=topic_data['topic'],
-                correct_count=topic_data['correct_count'],
-                total_count=topic_data['total_count'],
-                score_percentage=topic_data['score_percentage'],
-                weakness_analysis=topic_data['weakness_analysis'],
-                improvement_advice=topic_data['improvement_advice']
-            )
-            db.add(detail)
-        
-        db.commit()
-        
-        # 詳細な分析結果を生成
-        overall_score = test_result.score_percentage
-        if overall_score >= 90:
-            overall_analysis = f"""
-### 総合分析
-{test_result.subject}のテスト結果は優秀です（{overall_score:.1f}%）。基礎知識がしっかりと身についており、応用力も備わっています。
-
-### 学習戦略
-- 現在の知識を維持しながら、より高度な問題に挑戦
-- 他の科目との関連性を意識した学習
-- 定期テストや模擬試験での実践練習
-
-### 保護者・教師へのアドバイス
-- 子どもの努力を認め、自信を持たせる
-- さらなる挑戦を促す環境作り
-- 他の科目とのバランスを考慮した学習計画
-
-### 学習スケジュール例
-- 平日：30分の応用問題練習
-- 週末：総合問題や過去問に挑戦
-- 月1回：模擬試験で実力を確認
-"""
-        elif overall_score >= 70:
-            overall_analysis = f"""
-### 総合分析
-{test_result.subject}のテスト結果は良好です（{overall_score:.1f}%）。基本的な理解はできていますが、応用力の向上が課題です。
-
-### 学習戦略
-- 弱点単元の基礎固め
-- 応用問題の練習を増やす
-- 定期的な復習で知識を定着
-
-### 保護者・教師へのアドバイス
-- 子どもの努力を認め、継続を促す
-- 弱点克服のための具体的なサポート
-- 学習習慣の定着を支援
-
-### 学習スケジュール例
-- 平日：20分の基礎問題 + 10分の応用問題
-- 週末：弱点単元の重点復習
-- 週1回：理解度チェックテスト
-"""
-        else:
-            overall_analysis = f"""
-### 総合分析
-{test_result.subject}のテスト結果は改善の余地があります（{overall_score:.1f}%）。基礎から丁寧に復習し、理解を深める必要があります。
-
-### 学習戦略
-- 基礎知識の徹底的な復習
-- 基本問題を繰り返し解く
-- 理解できない部分は質問する習慣
-
-### 保護者・教師へのアドバイス
-- 焦らずに基礎から丁寧に学習
-- 子どものペースに合わせた学習計画
-- 小さな成功体験を積み重ねる
-
-### 学習スケジュール例
-- 平日：30分の基礎問題練習
-- 週末：理解できていない単元の重点学習
-- 週2回：基本概念の確認テスト
-"""
-        
-        return {
-            "message": "テスト結果のアップロードと詳細分析が完了しました",
-            "test_result_id": test_result.id,
-            "subject": test_result.subject,
-            "test_name": test_result.test_name,
-            "total_score": test_result.total_score,
-            "max_score": test_result.max_score,
-            "score_percentage": test_result.score_percentage,
-            "analysis_status": test_result.analysis_status,
-            "overall_analysis": overall_analysis,
-            "topics": dummy_topics
-        }
+        try:
+            # テスト結果分析器を初期化
+            analyzer = TestResultAnalyzer()
+            
+            # ファイルからテキストを抽出
+            try:
+                text = analyzer.extract_text_from_file(temp_file_path)
+                if not text.strip():
+                    raise HTTPException(status_code=400, detail="ファイルからテキストを抽出できませんでした")
+            except Exception as extract_error:
+                raise HTTPException(status_code=400, detail=f"ファイルの読み込みエラー: {str(extract_error)}")
+            
+            # テスト結果を解析
+            try:
+                parsed_result = analyzer.parse_test_result(text)
+            except Exception as parse_error:
+                raise HTTPException(status_code=400, detail=f"テスト結果の解析エラー: {str(parse_error)}")
+            
+            # AI分析を実行（GPT-4o使用）
+            try:
+                analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
+            except Exception as analysis_error:
+                raise HTTPException(status_code=500, detail=f"AI分析エラー: {str(analysis_error)}")
+            
+            # データベースに保存
+            try:
+                test_result = TestResult(
+                    user_id=user_id,
+                    subject=subject or parsed_result['subject'],
+                    test_name=test_name or parsed_result['test_name'],
+                    total_score=parsed_result['total_score'] or 0,
+                    max_score=parsed_result['max_score'] or 100,
+                    score_percentage=parsed_result['score_percentage'],
+                    file_path=file.filename,
+                    analysis_status="completed"
+                )
+                
+                db.add(test_result)
+                db.flush()  # IDを取得するためにflush
+                
+                # 単元別詳細を保存
+                for topic_data in analysis_result['topics']:
+                    detail = TestResultDetail(
+                        test_result_id=test_result.id,
+                        topic=topic_data['topic'],
+                        correct_count=topic_data['correct_count'],
+                        total_count=topic_data['total_count'],
+                        score_percentage=topic_data['score_percentage'],
+                        weakness_analysis=topic_data.get('weakness_analysis'),
+                        improvement_advice=topic_data.get('improvement_advice')
+                    )
+                    db.add(detail)
+                
+                db.commit()
+                
+                return {
+                    "message": "テスト結果のアップロードとAI分析が完了しました",
+                    "test_result_id": test_result.id,
+                    "subject": test_result.subject,
+                    "test_name": test_result.test_name,
+                    "total_score": test_result.total_score,
+                    "max_score": test_result.max_score,
+                    "score_percentage": test_result.score_percentage,
+                    "analysis_status": test_result.analysis_status,
+                    "overall_analysis": analysis_result['overall_analysis'],
+                    "topics": analysis_result['topics']
+                }
+                
+            except Exception as db_error:
+                db.rollback()
+                raise HTTPException(status_code=500, detail=f"データベース保存エラー: {str(db_error)}")
+            
+        finally:
+            # 一時ファイルを削除
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass  # 削除に失敗しても無視
                 
     except HTTPException:
         raise
