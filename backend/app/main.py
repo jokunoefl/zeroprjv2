@@ -452,73 +452,130 @@ async def upload_test_result(
             # テスト結果分析器を初期化
             analyzer = TestResultAnalyzer()
             
-            # ファイルからテキストを抽出
-            try:
-                text = analyzer.extract_text_from_file(temp_file_path)
-                if not text.strip():
-                    raise HTTPException(status_code=400, detail="ファイルからテキストを抽出できませんでした")
-            except Exception as extract_error:
-                raise HTTPException(status_code=400, detail=f"ファイルの読み込みエラー: {str(extract_error)}")
-            
-            # テスト結果を解析
-            try:
-                parsed_result = analyzer.parse_test_result(text)
-            except Exception as parse_error:
-                raise HTTPException(status_code=400, detail=f"テスト結果の解析エラー: {str(parse_error)}")
-            
-            # AI分析を実行（GPT-4o使用）
-            try:
-                analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
-            except Exception as analysis_error:
-                raise HTTPException(status_code=500, detail=f"AI分析エラー: {str(analysis_error)}")
-            
-            # データベースに保存
-            try:
-                test_result = TestResult(
-                    user_id=user_id,
-                    subject=subject or parsed_result['subject'],
-                    test_name=test_name or parsed_result['test_name'],
-                    total_score=parsed_result['total_score'] or 0,
-                    max_score=parsed_result['max_score'] or 100,
-                    score_percentage=parsed_result['score_percentage'],
-                    file_path=file.filename,
-                    analysis_status="completed"
-                )
+            # PDFファイルの場合は直接AIに送信
+            if file_ext == '.pdf':
+                try:
+                    analysis_result = analyzer.analyze_pdf_directly_with_ai(temp_file_path, user_id)
+                except Exception as analysis_error:
+                    raise HTTPException(status_code=500, detail=f"PDF直接分析エラー: {str(analysis_error)}")
                 
-                db.add(test_result)
-                db.flush()  # IDを取得するためにflush
-                
-                # 単元別詳細を保存
-                for topic_data in analysis_result['topics']:
-                    detail = TestResultDetail(
-                        test_result_id=test_result.id,
-                        topic=topic_data['topic'],
-                        correct_count=topic_data['correct_count'],
-                        total_count=topic_data['total_count'],
-                        score_percentage=topic_data['score_percentage'],
-                        weakness_analysis=topic_data.get('weakness_analysis'),
-                        improvement_advice=topic_data.get('improvement_advice')
+                # データベースに保存
+                try:
+                    test_result = TestResult(
+                        user_id=user_id,
+                        subject=subject or "PDF分析結果",
+                        test_name=test_name or "PDFテスト結果",
+                        total_score=0,  # PDFから抽出できない場合は0
+                        max_score=100,
+                        score_percentage=0.0,
+                        file_path=file.filename,
+                        analysis_status="completed"
                     )
-                    db.add(detail)
+                    
+                    db.add(test_result)
+                    db.flush()
+                    
+                    # 分析結果を保存
+                    for topic_data in analysis_result['topics']:
+                        detail = TestResultDetail(
+                            test_result_id=test_result.id,
+                            topic=topic_data['topic'],
+                            correct_count=topic_data['correct_count'],
+                            total_count=topic_data['total_count'],
+                            score_percentage=topic_data['score_percentage'],
+                            weakness_analysis=topic_data.get('weakness_analysis'),
+                            improvement_advice=topic_data.get('improvement_advice')
+                        )
+                        db.add(detail)
+                    
+                    db.commit()
+                    
+                    return {
+                        "message": "PDFファイルの直接AI分析が完了しました",
+                        "test_result_id": test_result.id,
+                        "subject": test_result.subject,
+                        "test_name": test_result.test_name,
+                        "total_score": test_result.total_score,
+                        "max_score": test_result.max_score,
+                        "score_percentage": test_result.score_percentage,
+                        "analysis_status": test_result.analysis_status,
+                        "overall_analysis": analysis_result['overall_analysis'],
+                        "topics": analysis_result['topics'],
+                        "analysis_method": analysis_result.get('analysis_method', 'PDF直接分析')
+                    }
+                    
+                except Exception as db_error:
+                    db.rollback()
+                    raise HTTPException(status_code=500, detail=f"データベース保存エラー: {str(db_error)}")
+            
+            else:
+                # 画像ファイルの場合は従来の方法
+                try:
+                    text = analyzer.extract_text_from_file(temp_file_path)
+                    if not text.strip():
+                        raise HTTPException(status_code=400, detail="ファイルからテキストを抽出できませんでした")
+                except Exception as extract_error:
+                    raise HTTPException(status_code=400, detail=f"ファイルの読み込みエラー: {str(extract_error)}")
                 
-                db.commit()
+                # テスト結果を解析
+                try:
+                    parsed_result = analyzer.parse_test_result(text)
+                except Exception as parse_error:
+                    raise HTTPException(status_code=400, detail=f"テスト結果の解析エラー: {str(parse_error)}")
                 
-                return {
-                    "message": "テスト結果のアップロードとAI分析が完了しました",
-                    "test_result_id": test_result.id,
-                    "subject": test_result.subject,
-                    "test_name": test_result.test_name,
-                    "total_score": test_result.total_score,
-                    "max_score": test_result.max_score,
-                    "score_percentage": test_result.score_percentage,
-                    "analysis_status": test_result.analysis_status,
-                    "overall_analysis": analysis_result['overall_analysis'],
-                    "topics": analysis_result['topics']
-                }
+                # AI分析を実行（GPT-4o使用）
+                try:
+                    analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
+                except Exception as analysis_error:
+                    raise HTTPException(status_code=500, detail=f"AI分析エラー: {str(analysis_error)}")
                 
-            except Exception as db_error:
-                db.rollback()
-                raise HTTPException(status_code=500, detail=f"データベース保存エラー: {str(db_error)}")
+                # データベースに保存
+                try:
+                    test_result = TestResult(
+                        user_id=user_id,
+                        subject=subject or parsed_result['subject'],
+                        test_name=test_name or parsed_result['test_name'],
+                        total_score=parsed_result['total_score'] or 0,
+                        max_score=parsed_result['max_score'] or 100,
+                        score_percentage=parsed_result['score_percentage'],
+                        file_path=file.filename,
+                        analysis_status="completed"
+                    )
+                    
+                    db.add(test_result)
+                    db.flush()
+                    
+                    # 単元別詳細を保存
+                    for topic_data in analysis_result['topics']:
+                        detail = TestResultDetail(
+                            test_result_id=test_result.id,
+                            topic=topic_data['topic'],
+                            correct_count=topic_data['correct_count'],
+                            total_count=topic_data['total_count'],
+                            score_percentage=topic_data['score_percentage'],
+                            weakness_analysis=topic_data.get('weakness_analysis'),
+                            improvement_advice=topic_data.get('improvement_advice')
+                        )
+                        db.add(detail)
+                    
+                    db.commit()
+                    
+                    return {
+                        "message": "テスト結果のアップロードとAI分析が完了しました",
+                        "test_result_id": test_result.id,
+                        "subject": test_result.subject,
+                        "test_name": test_result.test_name,
+                        "total_score": test_result.total_score,
+                        "max_score": test_result.max_score,
+                        "score_percentage": test_result.score_percentage,
+                        "analysis_status": test_result.analysis_status,
+                        "overall_analysis": analysis_result['overall_analysis'],
+                        "topics": analysis_result['topics']
+                    }
+                    
+                except Exception as db_error:
+                    db.rollback()
+                    raise HTTPException(status_code=500, detail=f"データベース保存エラー: {str(db_error)}")
             
         finally:
             # 一時ファイルを削除

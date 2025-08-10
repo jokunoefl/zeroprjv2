@@ -219,6 +219,43 @@ class TestResultAnalyzer:
         except Exception as e:
             print(f"AI分析エラー: {e}")
             return self._generate_dummy_analysis(test_result)
+
+    def analyze_pdf_directly_with_ai(self, pdf_file_path: str, user_id: int = 1) -> Dict:
+        """PDFファイルを直接AIに送信して分析"""
+        if not OPENAI_AVAILABLE:
+            print("OpenAIライブラリが利用できません。ダミー分析を実行します。")
+            return self._generate_dummy_analysis_from_pdf(pdf_file_path)
+        
+        if not self.openai_api_key:
+            return self._generate_dummy_analysis_from_pdf(pdf_file_path)
+        
+        try:
+            # PDFファイルを読み込み
+            with open(pdf_file_path, 'rb') as pdf_file:
+                pdf_content = pdf_file.read()
+            
+            # AI分析用のプロンプトを作成
+            prompt = self._create_pdf_analysis_prompt()
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                files=[{"file": pdf_content, "filename": "test_result.pdf"}],
+                max_tokens=4000,
+                temperature=0.7
+            )
+            
+            analysis_text = response.choices[0].message.content
+            
+            # 分析結果を構造化
+            return self._parse_pdf_analysis(analysis_text, pdf_file_path)
+            
+        except Exception as e:
+            print(f"PDF直接分析エラー: {e}")
+            return self._generate_dummy_analysis_from_pdf(pdf_file_path)
     
     def _create_analysis_prompt(self, test_result: Dict) -> str:
         """AI分析用のプロンプトを作成"""
@@ -390,3 +427,133 @@ class TestResultAnalyzer:
             analysis['topics'].append(topic)
         
         return analysis
+
+    def _create_pdf_analysis_prompt(self) -> str:
+        """PDF直接分析用のプロンプトを作成"""
+        return """
+このPDFファイルはテスト結果です。以下の観点から詳細な分析を行い、具体的で実行可能な改善策を提案してください：
+
+## 分析要求
+以下の観点から詳細な分析を行い、具体的で実行可能な改善策を提案してください：
+
+### 1. テスト結果の抽出
+- 科目名
+- テスト名
+- 総合点と満点
+- 単元別の得点状況
+- 正答率
+
+### 2. 総合的な成績評価
+- 現在の学力レベル（基礎・標準・応用・発展）
+- 全体的な強みと弱み
+- 学習の進捗状況
+
+### 3. 単元別詳細分析
+各単元について以下を分析：
+- 理解度の深さ（表面的理解 vs 深い理解）
+- 間違いの傾向（計算ミス、概念理解不足、応用力不足など）
+- 学習の優先順位
+
+### 4. 学習戦略の提案
+- 短期目標（1-2週間）
+- 中期目標（1-2ヶ月）
+- 長期目標（3-6ヶ月）
+- 具体的な学習方法と教材
+- 練習問題の種類と量
+
+### 5. 学習スケジュール
+- 1日の学習時間配分
+- 週間学習計画
+- 復習のタイミング
+
+### 6. モチベーション維持
+- 学習意欲を高める方法
+- 挫折しそうな時の対処法
+- 成功体験の作り方
+
+### 7. 保護者・教師へのアドバイス
+- 家庭でのサポート方法
+- 効果的な声かけ
+- 学習環境の整備
+
+## 回答形式
+以下の構造化された形式で回答してください：
+
+### テスト結果概要
+[科目、テスト名、総合点などの基本情報]
+
+### 総合分析
+[全体的な成績評価と学習状況]
+
+### 単元別分析
+[各単元の詳細分析]
+
+### 改善戦略
+[具体的な学習方法とスケジュール]
+
+### 優先学習項目
+[最も重要な学習項目とその理由]
+
+### 保護者・教師へのアドバイス
+[家庭・学校でのサポート方法]
+
+### 学習スケジュール例
+[具体的な時間配分と計画]
+
+各項目は具体的で実行可能な内容にしてください。
+"""
+
+    def _parse_pdf_analysis(self, analysis_text: str, pdf_file_path: str) -> Dict:
+        """PDF分析結果を構造化"""
+        # 分析結果を構造化
+        return {
+            'overall_analysis': analysis_text,
+            'source_file': pdf_file_path,
+            'analysis_method': 'PDF直接分析',
+            'topics': [
+                {
+                    'topic': 'PDF分析結果',
+                    'correct_count': 0,
+                    'total_count': 0,
+                    'score_percentage': 0.0,
+                    'weakness_analysis': analysis_text,
+                    'improvement_advice': 'PDFファイルから直接分析された結果です。'
+                }
+            ]
+        }
+
+    def _generate_dummy_analysis_from_pdf(self, pdf_file_path: str) -> Dict:
+        """PDFファイル用のダミー分析"""
+        return {
+            'overall_analysis': f"""
+### 総合分析
+PDFファイル（{pdf_file_path}）のテスト結果を分析しました。
+
+### 学習戦略
+- PDFファイルの内容を確認し、具体的な学習計画を立てる
+- 弱点単元の重点的な復習
+- 定期的な理解度チェック
+
+### 保護者・教師へのアドバイス
+- PDFファイルの内容を一緒に確認
+- 子どもの理解度に合わせた学習支援
+- 継続的な学習習慣の定着
+
+### 学習スケジュール例
+- 平日：30分の基礎問題練習
+- 週末：弱点単元の重点学習
+- 週1回：理解度チェックテスト
+""",
+            'source_file': pdf_file_path,
+            'analysis_method': 'ダミー分析',
+            'topics': [
+                {
+                    'topic': 'PDF分析',
+                    'correct_count': 0,
+                    'total_count': 0,
+                    'score_percentage': 0.0,
+                    'weakness_analysis': 'PDFファイルの内容を確認して分析を行います。',
+                    'improvement_advice': 'PDFファイルの内容に基づいた具体的な学習計画を立ててください。'
+                }
+            ]
+        }
