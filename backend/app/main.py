@@ -44,30 +44,33 @@ async def startup_event():
     
     # Ensure tables are created by checking table existence
     import asyncio
-    await asyncio.sleep(1.0)  # Increased delay
+    await asyncio.sleep(2.0)  # Increased delay for SQLite
     
     # Verify table creation by attempting a simple query
     db = SessionLocal()
     try:
+        from sqlalchemy import text
         # Test if tables exist by checking if we can query them
-        db.execute("SELECT 1 FROM questions LIMIT 1")
+        db.execute(text("SELECT 1 FROM questions LIMIT 1"))
         db.commit()
         print("Questions table verified")
         
         # Also check mastery table
-        db.execute("SELECT 1 FROM mastery LIMIT 1")
+        db.execute(text("SELECT 1 FROM mastery LIMIT 1"))
         db.commit()
         print("Mastery table verified")
         
     except Exception as e:
         # Tables don't exist yet, wait a bit more and retry
         print(f"Table verification failed: {e}")
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(3.0)
         db.rollback()
         
-        # Retry table creation
+        # Retry table creation with more explicit approach
         try:
+            print("Retrying table creation...")
             Base.metadata.create_all(bind=engine)
+            await asyncio.sleep(1.0)  # Wait for tables to be created
             print("Tables recreated successfully")
         except Exception as e2:
             print(f"Error recreating tables: {e2}")
@@ -151,27 +154,56 @@ def init_database_simple(db: Session = Depends(get_db)):
     try:
         print("Starting simple database initialization...")
         
-        # Create tables
-        Base.metadata.create_all(bind=engine)
-        print("Tables created successfully")
+        # Create tables with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"Creating tables (attempt {attempt + 1}/{max_retries})...")
+                Base.metadata.create_all(bind=engine)
+                print("Tables created successfully")
+                break
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    return {"error": f"Failed to create tables after {max_retries} attempts: {str(e)}"}
+                import time
+                time.sleep(2)  # Wait before retry
+        
+        # Wait a moment for tables to be created
+        import time
+        time.sleep(3)
+        
+        # Verify tables exist before seeding
+        try:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1 FROM questions LIMIT 1"))
+            db.commit()
+            print("Questions table verified")
+        except Exception as e:
+            print(f"Questions table verification failed: {e}")
+            return {"error": f"Questions table not accessible: {str(e)}"}
         
         # Seed the database
-        seed_basic(db)
-        print("Basic seeding completed")
-        seed_math_topics(db)
-        print("Math topics seeded")
-        seed_science_topics(db)
-        print("Science topics seeded")
-        seed_social_topics(db)
-        print("Social topics seeded")
-        seed_math_dependencies(db)
-        print("Math dependencies seeded")
-        seed_science_dependencies(db)
-        print("Science dependencies seeded")
-        seed_social_dependencies(db)
-        print("Social dependencies seeded")
-        
-        return {"message": "Database initialized successfully"}
+        try:
+            seed_basic(db)
+            print("Basic seeding completed")
+            seed_math_topics(db)
+            print("Math topics seeded")
+            seed_science_topics(db)
+            print("Science topics seeded")
+            seed_social_topics(db)
+            print("Social topics seeded")
+            seed_math_dependencies(db)
+            print("Math dependencies seeded")
+            seed_science_dependencies(db)
+            print("Science dependencies seeded")
+            seed_social_dependencies(db)
+            print("Social dependencies seeded")
+            
+            return {"message": "Database initialized successfully"}
+        except Exception as e:
+            print(f"Seeding error: {e}")
+            return {"error": f"Seeding failed: {str(e)}"}
         
     except Exception as e:
         print(f"Error during initialization: {e}")
