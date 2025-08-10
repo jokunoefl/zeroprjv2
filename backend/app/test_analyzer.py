@@ -1,6 +1,7 @@
 import os
 import tempfile
 import shutil
+import base64
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import json
@@ -29,7 +30,7 @@ except ImportError:
     print("Warning: pytesseract not available. OCR will be disabled.")
 
 try:
-    import openai
+    from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -40,7 +41,9 @@ class TestResultAnalyzer:
         """テスト結果分析器の初期化"""
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         if self.openai_api_key:
-            openai.api_key = self.openai_api_key
+            self.client = OpenAI(api_key=self.openai_api_key)
+        else:
+            self.client = None
     
     def extract_text_from_pdf(self, file_path: str) -> str:
         """PDFからテキストを抽出"""
@@ -81,6 +84,16 @@ class TestResultAnalyzer:
             return self.extract_text_from_image(file_path)
         else:
             raise Exception(f"サポートされていないファイル形式: {file_ext}")
+    
+    def _encode_pdf_to_base64(self, pdf_file_path: str) -> str:
+        """PDFファイルをBase64エンコード"""
+        try:
+            with open(pdf_file_path, 'rb') as pdf_file:
+                pdf_content = pdf_file.read()
+                return base64.b64encode(pdf_content).decode('utf-8')
+        except Exception as e:
+            print(f"PDF Base64エンコードエラー: {e}")
+            return ""
     
     def parse_test_result(self, text: str) -> Dict:
         """テキストからテスト結果を解析"""
@@ -194,14 +207,15 @@ class TestResultAnalyzer:
             print("OpenAIライブラリが利用できません。ダミー分析を実行します。")
             return self._generate_dummy_analysis(test_result)
         
-        if not self.openai_api_key:
+        if not self.openai_api_key or not self.client:
+            print("OpenAI APIキーが設定されていません。ダミー分析を実行します。")
             return self._generate_dummy_analysis(test_result)
         
         try:
             # AI分析用のプロンプトを作成
             prompt = self._create_analysis_prompt(test_result)
             
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。テスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
@@ -226,35 +240,82 @@ class TestResultAnalyzer:
             print("OpenAIライブラリが利用できません。ダミー分析を実行します。")
             return self._generate_dummy_analysis_from_pdf(pdf_file_path)
         
-        if not self.openai_api_key:
+        if not self.openai_api_key or not self.client:
+            print("OpenAI APIキーが設定されていません。ダミー分析を実行します。")
             return self._generate_dummy_analysis_from_pdf(pdf_file_path)
         
         try:
             # まずPDFからテキストを抽出して内容を確認
             try:
+                print(f"PDFテキスト抽出開始: {pdf_file_path}")
                 text_content = self.extract_text_from_pdf(pdf_file_path)
                 print(f"PDFから抽出されたテキスト: {text_content[:200]}...")
+                print(f"抽出されたテキストの長さ: {len(text_content)} 文字")
             except Exception as e:
                 print(f"PDFテキスト抽出エラー: {e}")
                 text_content = "PDFファイルの内容を読み取れませんでした。"
             
-            # AI分析用のプロンプトを作成（テキスト内容を含める）
-            prompt = self._create_pdf_analysis_prompt_with_content(text_content)
-            
-            response = openai.ChatCompletion.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=4000,
-                temperature=0.7
-            )
-            
-            analysis_text = response.choices[0].message.content
-            
-            # 分析結果を構造化
-            return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
+            # PDFファイルを直接アップロードして分析
+            try:
+                print(f"PDFファイル直接アップロード開始: {pdf_file_path}")
+                with open(pdf_file_path, 'rb') as pdf_file:
+                    pdf_content = pdf_file.read()
+                    print(f"PDFファイル読み込み完了: {len(pdf_content)} bytes")
+                    
+                    response = self.client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "system", 
+                                "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"
+                            },
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": self._create_pdf_analysis_prompt_with_content(text_content)
+                                    },
+                                    {
+                                        "type": "file_url",
+                                        "file_url": {
+                                            "url": f"data:application/pdf;base64,{base64.b64encode(pdf_content).decode('utf-8')}"
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens=4000,
+                        temperature=0.7
+                    )
+                
+                analysis_text = response.choices[0].message.content
+                print(f"AI分析結果: {analysis_text[:200]}...")
+                
+                # 分析結果を構造化
+                return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
+                
+            except Exception as file_upload_error:
+                print(f"PDFファイル直接アップロードエラー: {file_upload_error}")
+                print("テキストベースの分析にフォールバックします。")
+                
+                # フォールバック: テキストベースの分析
+                prompt = self._create_pdf_analysis_prompt_with_content(text_content)
+                
+                response = self.client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=4000,
+                    temperature=0.7
+                )
+                
+                analysis_text = response.choices[0].message.content
+                
+                # 分析結果を構造化
+                return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
             
         except Exception as e:
             print(f"PDF直接分析エラー: {e}")

@@ -35,15 +35,25 @@ def root():
 def debug():
     """デバッグ情報エンドポイント"""
     import os
+    from .test_analyzer import TestResultAnalyzer
+    
+    # TestResultAnalyzerの初期化テスト
+    analyzer = TestResultAnalyzer()
+    openai_status = "available" if analyzer.client else "not_available"
+    
     return {
         "message": "Debug information",
         "timestamp": datetime.now().isoformat(),
         "environment": {
             "DATABASE_URL": "***" if os.getenv("DATABASE_URL") else "Not set",
             "PYTHON_VERSION": os.getenv("PYTHON_VERSION", "Not set"),
-            "PORT": os.getenv("PORT", "Not set")
+            "PORT": os.getenv("PORT", "Not set"),
+            "OPENAI_API_KEY": "***" if os.getenv("OPENAI_API_KEY") else "Not set"
         },
-        "database_type": "postgresql" if os.getenv("DATABASE_URL", "").startswith("postgres") else "sqlite"
+        "database_type": "postgresql" if os.getenv("DATABASE_URL", "").startswith("postgres") else "sqlite",
+        "openai_available": bool(os.getenv("OPENAI_API_KEY")),
+        "openai_status": openai_status,
+        "analyzer_client_initialized": analyzer.client is not None
     }
 
 # CORS settings
@@ -444,19 +454,51 @@ async def upload_test_result(
             raise HTTPException(status_code=400, detail="ファイルサイズが大きすぎます（10MB以下にしてください）")
         
         # 一時ファイルに保存
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
-            temp_file_path = temp_file.name
-        
+        temp_file_path = None
         try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+                # ファイルストリームを最初から読み取り
+                file.file.seek(0)
+                shutil.copyfileobj(file.file, temp_file)
+                temp_file_path = temp_file.name
+            
+            print(f"アップロードされたファイル: {file.filename}")
+            print(f"ファイルサイズ: {file.size} bytes")
+            print(f"ファイルタイプ: {file.content_type}")
+            print(f"一時ファイルパス: {temp_file_path}")
+            print(f"一時ファイルサイズ: {os.path.getsize(temp_file_path)} bytes")
+            
             # テスト結果分析器を初期化
             analyzer = TestResultAnalyzer()
             
             # PDFファイルの場合は直接AIに送信
             if file_ext == '.pdf':
                 try:
+                    print(f"PDFファイル分析開始: {file.filename}")
+                    print(f"処理対象ファイルパス: {temp_file_path}")
+                    print(f"処理対象ファイルサイズ: {os.path.getsize(temp_file_path)} bytes")
+                    
+                    # ファイルの内容を確認（最初の数バイト）
+                    with open(temp_file_path, 'rb') as f:
+                        first_bytes = f.read(100)
+                        print(f"ファイルの最初の100バイト: {first_bytes[:50]}...")
+                        
+                        # PDFファイルの場合はヘッダーを確認
+                        if file_ext == '.pdf':
+                            f.seek(0)
+                            header = f.read(10)
+                            print(f"PDFヘッダー: {header}")
+                            if header.startswith(b'%PDF'):
+                                print("有効なPDFファイルです")
+                            else:
+                                print("警告: PDFヘッダーが見つかりません")
+                    
                     analysis_result = analyzer.analyze_pdf_directly_with_ai(temp_file_path, user_id)
+                    
+                    print(f"PDF分析完了: {analysis_result.get('analysis_method', 'unknown')}")
+                    
                 except Exception as analysis_error:
+                    print(f"PDF分析エラー詳細: {analysis_error}")
                     raise HTTPException(status_code=500, detail=f"PDF直接分析エラー: {str(analysis_error)}")
                 
                 # データベースに保存
@@ -579,10 +621,14 @@ async def upload_test_result(
             
         finally:
             # 一時ファイルを削除
-            try:
-                os.unlink(temp_file_path)
-            except Exception:
-                pass  # 削除に失敗しても無視
+            if temp_file_path:
+                try:
+                    print(f"一時ファイル削除: {temp_file_path}")
+                    os.unlink(temp_file_path)
+                    print("一時ファイル削除完了")
+                except Exception as e:
+                    print(f"一時ファイル削除エラー: {e}")
+                    pass  # 削除に失敗しても無視
                 
     except HTTPException:
         raise
