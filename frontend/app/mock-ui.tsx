@@ -414,6 +414,7 @@ function TestUploadCard({ onNavigate }: { onNavigate: () => void }){
 function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
   const [showTestUpload, setShowTestUpload] = useState(false);
   const [showWeaknessMap, setShowWeaknessMap] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState("math");
 
   const handleNodeClick = (node: any) => {
     console.log('Node clicked:', node);
@@ -444,8 +445,6 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
     );
   }
 
-  const [selectedSubject, setSelectedSubject] = useState("math");
-
   if (showWeaknessMap) {
     return (
       <div className="space-y-6">
@@ -460,7 +459,7 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Select value={selectedSubject} onValueChange={(v: any) => setSelectedSubject(v)}>
+            <Select value={selectedSubject} onValueChange={(v: string) => setSelectedSubject(v)}>
               <SelectTrigger className="w-32 rounded-xl">
                 <SelectValue placeholder="科目" />
               </SelectTrigger>

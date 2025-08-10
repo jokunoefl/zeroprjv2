@@ -83,8 +83,8 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice, subject = "mat
           const result = await response.json();
           const topics = result.topics || [];
           
-          // データベースのデータをLearningNode形式に変換
-          const convertedData: LearningNode[] = topics.map((topic: any) => ({
+                     // データベースのデータをLearningNode形式に変換
+           const convertedData: LearningNode[] = topics.map((topic: { id: number; name: string; prerequisites: string[]; dependencies: string[]; subject?: string; domain?: string }) => ({
             id: topic.id.toString(),
             name: topic.name,
             mastery: Math.floor(Math.random() * 100), // 仮のデータ
