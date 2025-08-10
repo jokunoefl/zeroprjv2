@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, Brain, CalendarClock, CheckCircle2, Clock3, Database, FileText, Play, School, Settings, Sparkles, Trophy, XCircle, LogIn, User, Upload, Maximize2 } from "lucide-react";
 import TestUpload from './test-upload';
-import { WeaknessMapComponent, sampleWeaknessData } from './weakness-map';
+import WeaknessMapApp, { sampleWeaknessData } from './weakness-map';
 
 function cn(...cls: (string | false | undefined)[]) { return cls.filter(Boolean).join(" "); }
 
@@ -480,12 +480,7 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
         </div>
         
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <WeaknessMapComponent 
-            data={sampleWeaknessData}
-            onNodeClick={handleNodeClick}
-            onStartPractice={handleStartPractice}
-            subject={selectedSubject}
-          />
+          <WeaknessMapApp />
         </div>
       </div>
     );
