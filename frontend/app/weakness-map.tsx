@@ -1,19 +1,15 @@
 "use client";
-import React, { useState, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { 
   ArrowRight, 
-  RotateCcw, 
   Target, 
   Brain, 
   AlertTriangle, 
   CheckCircle, 
   Clock, 
   Zap,
-  TrendingUp,
-  BookOpen,
-  Maximize2,
-  Minimize2
+  TrendingUp
 } from "lucide-react";
 
 // データ型定義
@@ -46,21 +42,13 @@ interface WeaknessMapProps {
   onStartPractice: (nodeId: string, type: 'current' | 'prerequisite' | 'quick') => void;
 }
 
-// 色の定義（指定された色を使用）
+// 色の定義
 const MASTERY_COLORS = {
   low: '#E53935',    // 赤 <60
   medium: '#FB8C00', // 橙 60-75
   high: '#FDD835',   // 黄 75-85
   excellent: '#43A047' // 緑 85+
 };
-
-const PRIORITY_COLORS = {
-  high: '#EF4444',
-  medium: '#F59E0B',
-  low: '#10B981'
-};
-
-
 
 // マスターレベルに基づく色を取得
 function getMasteryColor(mastery: number): string {
@@ -72,24 +60,20 @@ function getMasteryColor(mastery: number): string {
 
 // ノードサイズを出題量に基づいて計算
 function getNodeSize(questions: number): number {
-  return Math.max(50, Math.min(90, 50 + questions * 3));
+  return Math.max(60, Math.min(100, 60 + questions * 4));
 }
 
 // 依存マップのメインコンポーネント
 export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapProps) {
   const [selectedNode, setSelectedNode] = useState<LearningNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // ノードの位置を計算（縦方向フロー図レイアウト）
+  // ノードの位置を計算（シンプルなグリッドレイアウト）
   const nodePositions = useMemo(() => {
     const positions: Record<string, { x: number; y: number }> = {};
     const levelMap: Record<string, number> = {};
     
-    // レベルを計算（前提単元の最大レベル + 1）
+    // レベルを計算
     data.forEach(node => {
       if (node.prerequisites.length === 0) {
         levelMap[node.id] = 0;
@@ -107,15 +91,13 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
       levelNodes[level].push(node.id);
     });
 
-    // 縦方向フロー図として位置を割り当て
+    // シンプルな配置
     Object.entries(levelNodes).forEach(([level, nodeIds]) => {
-      const y = parseInt(level) * 250 + 150; // 縦方向の間隔を広げる
-      const centerX = 400; // 中央配置
-      const totalWidth = (nodeIds.length - 1) * 300; // ノード間の幅
-      const startX = centerX - totalWidth / 2;
+      const y = parseInt(level) * 200 + 100;
+      const startX = 100;
       
       nodeIds.forEach((nodeId, index) => {
-        const x = startX + index * 300;
+        const x = startX + index * 250;
         positions[nodeId] = { x, y };
       });
     });
@@ -128,399 +110,244 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
     onNodeClick(node);
   };
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.5));
-  const handleReset = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
-
-  // マウスドラッグでパン機能
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // スクロール時のパン機能を無効化
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(prev => Math.max(0.5, Math.min(2, prev + delta)));
-    }
-  };
-
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'h-[900px]'} bg-gray-50 overflow-hidden flex flex-col`}>
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <Brain className="w-6 h-6 text-blue-600" />
-          <h3 className="text-lg font-semibold">学習依存フロー図</h3>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            <span>弱点</span>
-            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-            <span>要復習</span>
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            <span>習得済み</span>
-            <span className="ml-2 text-blue-600">↓ 学習の流れ</span>
-          </div>
-        </div>
+    <div className="flex h-[600px] bg-gray-50 rounded-xl overflow-hidden">
+      {/* 左側: 依存マップ */}
+      <div className="flex-1 relative p-4 overflow-auto">
+        <h3 className="text-lg font-semibold mb-4">学習依存マップ</h3>
         
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleZoomOut}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            title="縮小"
-          >
-            <Minimize2 className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-medium w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <button
-            onClick={handleZoomIn}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            title="拡大"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            title="リセット"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            title={isFullscreen ? "全画面解除" : "全画面表示"}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
+        {/* 接続線を描画 */}
+        <svg className="absolute inset-0 pointer-events-none">
+          {data.map(node => 
+            node.prerequisites.map(prereqId => {
+              const start = nodePositions[prereqId];
+              const end = nodePositions[node.id];
+              if (!start || !end) return null;
+              
+              const isHovered = hoveredNode === node.id || hoveredNode === prereqId;
+              
+              return (
+                <line
+                  key={`${prereqId}-${node.id}`}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke={isHovered ? "#3B82F6" : "#CBD5E1"}
+                  strokeWidth={isHovered ? 3 : 2}
+                  markerEnd="url(#arrowhead)"
+                />
+              );
+            })
+          )}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#CBD5E1" />
+            </marker>
+          </defs>
+        </svg>
+
+        {/* ノードを描画 */}
+        {data.map(node => {
+          const position = nodePositions[node.id];
+          if (!position) return null;
+
+          const size = getNodeSize(node.questionCount);
+          const color = getMasteryColor(node.mastery);
+          const isSelected = selectedNode?.id === node.id;
+          const isHovered = hoveredNode === node.id;
+
+          return (
+            <motion.div
+              key={node.id}
+              className="absolute cursor-pointer"
+              style={{
+                left: position.x - size / 2,
+                top: position.y - size / 2,
+              }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleNodeClick(node)}
+              onMouseEnter={() => setHoveredNode(node.id)}
+              onMouseLeave={() => setHoveredNode(null)}
+            >
+              <div
+                className="rounded-full flex items-center justify-center text-white font-medium text-sm relative"
+                style={{
+                  width: size,
+                  height: size,
+                  backgroundColor: color,
+                  border: isSelected ? '3px solid #3B82F6' : '2px solid white',
+                  boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.2)',
+                }}
+              >
+                {node.mastery < 60 && <AlertTriangle className="w-4 h-4" />}
+                {node.mastery >= 85 && <CheckCircle className="w-4 h-4" />}
+                {node.mastery >= 60 && node.mastery < 85 && <TrendingUp className="w-4 h-4" />}
+                <span className="text-xs font-bold">{node.mastery}%</span>
+              </div>
+              
+              {/* ノード名 */}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 text-xs font-medium text-gray-700 bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
+                {node.name}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* 左側: 依存マップ */}
-        <div 
-          ref={containerRef}
-          className="flex-1 relative overflow-auto cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        >
-          <div
-            className="relative transition-transform duration-200"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: '0 0',
-              minHeight: '100%',
-              minWidth: '100%'
-            }}
-          >
-            {/* 接続線を描画 */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '800px', minHeight: '1200px' }}>
-              {data.map(node => 
-                node.prerequisites.map(prereqId => {
-                  const start = nodePositions[prereqId];
-                  const end = nodePositions[node.id];
-                  if (!start || !end) return null;
-                  
-                  const isHovered = hoveredNode === node.id || hoveredNode === prereqId;
-                  
-                  // 曲線の制御点を計算（縦方向フローに適した曲線）
-                  const midY = (start.y + end.y) / 2;
-                  const controlY1 = start.y + (midY - start.y) * 0.3;
-                  const controlY2 = end.y - (end.y - midY) * 0.3;
-                  
-                  return (
-                    <path
-                      key={`${prereqId}-${node.id}`}
-                      d={`M ${start.x} ${start.y} C ${start.x} ${controlY1} ${end.x} ${controlY2} ${end.x} ${end.y}`}
-                      stroke={isHovered ? "#3B82F6" : "#CBD5E1"}
-                      strokeWidth={isHovered ? 3 : 2}
-                      strokeDasharray={isHovered ? "5,5" : "none"}
-                      fill="none"
-                      markerEnd="url(#arrowhead)"
-                    />
-                  );
-                })
-              )}
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="12"
-                  markerHeight="8"
-                  refX="10"
-                  refY="4"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 12 4, 0 8" fill="#CBD5E1" />
-                </marker>
-              </defs>
-            </svg>
+      {/* 右側: 詳細パネル */}
+      <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
+        {selectedNode ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold">{selectedNode.name}</h4>
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium">{selectedNode.mastery}%</span>
+              </div>
+            </div>
 
-            {/* ノードを描画 */}
-            {data.map(node => {
-              const position = nodePositions[node.id];
-              if (!position) return null;
-
-              const size = getNodeSize(node.questionCount);
-              const color = getMasteryColor(node.mastery);
-              const isSelected = selectedNode?.id === node.id;
-              const isHovered = hoveredNode === node.id;
-
-              return (
-                <motion.div
-                  key={node.id}
-                  className="absolute cursor-pointer"
+            {/* 定着度バー */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>定着度</span>
+                <span>{selectedNode.mastery}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full transition-all duration-300"
                   style={{
-                    left: position.x - size / 2,
-                    top: position.y - size / 2,
+                    width: `${selectedNode.mastery}%`,
+                    backgroundColor: getMasteryColor(selectedNode.mastery)
                   }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleNodeClick(node)}
-                  onMouseEnter={() => setHoveredNode(node.id)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                >
+                />
+              </div>
+            </div>
+
+            {/* 基本情報 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-xl font-bold text-blue-600">{selectedNode.questionCount}</div>
+                <div className="text-xs text-gray-600">最近の出題</div>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-xl font-bold text-green-600">{selectedNode.estimatedTime}分</div>
+                <div className="text-xs text-gray-600">推定時間</div>
+              </div>
+            </div>
+
+            {/* ミス傾向 */}
+            <div className="space-y-2">
+              <h5 className="font-medium text-sm">ミス傾向</h5>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span>計算ミス</span>
+                  <span>{selectedNode.mistakeTypes.calculation}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1">
                   <div
-                    className="rounded-full flex items-center justify-center text-white font-medium text-sm relative"
-                    style={{
-                      width: size,
-                      height: size,
-                      backgroundColor: color,
-                      border: isSelected ? '4px solid #3B82F6' : '3px solid white',
-                      boxShadow: isHovered ? '0 8px 25px rgba(0,0,0,0.3)' : '0 4px 15px rgba(0,0,0,0.2)',
-                    }}
-                  >
-                    {node.mastery < 60 && <AlertTriangle className="w-5 h-5" />}
-                    {node.mastery >= 85 && <CheckCircle className="w-5 h-5" />}
-                    {node.mastery >= 60 && node.mastery < 85 && <TrendingUp className="w-5 h-5" />}
-                    <span className="text-xs font-bold">{node.mastery}%</span>
-                  </div>
-                  
-                                     {/* ノード名 */}
-                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 text-xs font-medium text-gray-700 bg-white px-3 py-1 rounded-full shadow-lg whitespace-nowrap border">
-                     {node.name}
-                   </div>
-                   
-                   {/* レベル表示 */}
-                   <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
-                     Level {data.find(n => n.id === node.id)?.prerequisites.length || 0}
-                   </div>
-
-                  {/* 優先度インジケーター */}
-                  <div 
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white"
-                    style={{ backgroundColor: PRIORITY_COLORS[node.priority] }}
+                    className="h-1 bg-red-500 rounded-full"
+                    style={{ width: `${selectedNode.mistakeTypes.calculation}%` }}
                   />
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 右側: 詳細パネル */}
-        <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            {selectedNode ? (
-              <motion.div
-                key={selectedNode.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="p-6 space-y-6"
-              >
-                {/* ヘッダー */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xl font-bold text-gray-900">{selectedNode.name}</h4>
-                    <div className="flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-blue-600" />
-                      <span className="text-lg font-bold">{selectedNode.mastery}%</span>
-                    </div>
-                  </div>
-
-                  {/* 定着度バー */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>定着度</span>
-                      <span className="font-medium">{selectedNode.mastery}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <motion.div
-                        className="h-3 rounded-full transition-all duration-500"
-                        style={{
-                          backgroundColor: getMasteryColor(selectedNode.mastery)
-                        }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${selectedNode.mastery}%` }}
-                      />
-                    </div>
-                  </div>
-
-                                     {/* 基本情報 */}
-                   <div className="grid grid-cols-2 gap-4 pt-3">
-                     <div className="text-center p-3 bg-blue-50 rounded-lg">
-                       <div className="text-2xl font-bold text-blue-600">{selectedNode.questionCount}</div>
-                       <div className="text-xs text-gray-600">最近の出題</div>
-                     </div>
-                     <div className="text-center p-3 bg-green-50 rounded-lg">
-                       <div className="text-2xl font-bold text-green-600">{selectedNode.estimatedTime}分</div>
-                       <div className="text-xs text-gray-600">推定時間</div>
-                     </div>
-                   </div>
                 </div>
-
-                {/* ミス傾向 */}
-                <div className="space-y-3">
-                  <h5 className="font-semibold text-gray-900 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500" />
-                    ミス傾向分析
-                  </h5>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">計算ミス</span>
-                        <span className="font-medium">{selectedNode.mistakeTypes.calculation}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="h-2 bg-red-500 rounded-full transition-all duration-300"
-                          style={{ width: `${selectedNode.mistakeTypes.calculation}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">読解ミス</span>
-                        <span className="font-medium">{selectedNode.mistakeTypes.comprehension}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="h-2 bg-orange-500 rounded-full transition-all duration-300"
-                          style={{ width: `${selectedNode.mistakeTypes.comprehension}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">条件整理</span>
-                        <span className="font-medium">{selectedNode.mistakeTypes.logic}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-                          style={{ width: `${selectedNode.mistakeTypes.logic}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span>読解ミス</span>
+                  <span>{selectedNode.mistakeTypes.comprehension}%</span>
                 </div>
-
-                {/* 直近の問題 */}
-                <div className="space-y-3">
-                  <h5 className="font-semibold text-gray-900 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-purple-500" />
-                    直近の問題
-                  </h5>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {selectedNode.recentQuestions.slice(0, 5).map((question, index) => (
-                      <motion.div
-                        key={question.id}
-                        className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => onStartPractice(selectedNode.id, 'quick')}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-sm">Q{index + 1}</span>
-                          <div className="flex items-center gap-2">
-                            {question.isCorrect ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertTriangle className="w-4 h-4 text-red-500" />
-                            )}
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <Clock className="w-3 h-3" />
-                              <span>{question.timeSpent}s</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-sm text-gray-700 line-clamp-2">{question.text}</div>
-                      </motion.div>
-                    ))}
-                  </div>
+                <div className="w-full bg-gray-200 rounded-full h-1">
+                  <div
+                    className="h-1 bg-orange-500 rounded-full"
+                    style={{ width: `${selectedNode.mistakeTypes.comprehension}%` }}
+                  />
                 </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span>条件整理</span>
+                  <span>{selectedNode.mistakeTypes.logic}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1">
+                  <div
+                    className="h-1 bg-blue-500 rounded-full"
+                    style={{ width: `${selectedNode.mistakeTypes.logic}%` }}
+                  />
+                </div>
+              </div>
+            </div>
 
-                {/* アクションボタン */}
-                <div className="space-y-3 pt-4 border-t border-gray-200">
-                  <motion.button
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg"
-                    onClick={() => onStartPractice(selectedNode.id, 'current')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Target className="w-4 h-4" />
-                    この単元から学習開始
-                  </motion.button>
-                  
-                  {selectedNode.prerequisites.length > 0 && (
-                    <motion.button
-                      className="w-full bg-orange-600 text-white py-3 px-4 rounded-xl text-sm font-semibold hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 shadow-lg"
-                      onClick={() => onStartPractice(selectedNode.id, 'prerequisite')}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                      前提単元に戻る
-                    </motion.button>
-                  )}
-                  
-                  <motion.button
-                    className="w-full bg-green-600 text-white py-3 px-4 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-lg"
+            {/* 直近の問題 */}
+            <div className="space-y-2">
+              <h5 className="font-medium text-sm">直近の問題</h5>
+              <div className="space-y-2">
+                {selectedNode.recentQuestions.slice(0, 3).map((question, index) => (
+                  <div
+                    key={question.id}
+                    className="p-2 bg-gray-50 rounded text-xs cursor-pointer hover:bg-gray-100"
                     onClick={() => onStartPractice(selectedNode.id, 'quick')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                   >
-                    <Zap className="w-4 h-4" />
-                    3問クイック復習（3分）
-                  </motion.button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center text-gray-500 py-12 px-6"
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">Q{index + 1}</span>
+                      <div className="flex items-center gap-1">
+                        {question.isCorrect ? (
+                          <CheckCircle className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <AlertTriangle className="w-3 h-3 text-red-500" />
+                        )}
+                        <Clock className="w-3 h-3 text-gray-400" />
+                        <span>{question.timeSpent}s</span>
+                      </div>
+                    </div>
+                    <div className="text-gray-600 truncate">{question.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* アクションボタン */}
+            <div className="space-y-2 pt-4 border-t">
+              <button
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                onClick={() => onStartPractice(selectedNode.id, 'current')}
               >
-                <Brain className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium mb-2">ノードを選択してください</p>
-                <p className="text-sm">マップ上のノードをクリックして詳細を確認できます</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                <Target className="w-4 h-4" />
+                この単元からやる
+              </button>
+              
+              {selectedNode.prerequisites.length > 0 && (
+                <button
+                  className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => onStartPractice(selectedNode.id, 'prerequisite')}
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  前提単元に戻る
+                </button>
+              )}
+              
+              <button
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                onClick={() => onStartPractice(selectedNode.id, 'quick')}
+              >
+                <Zap className="w-4 h-4" />
+                3問だけ解く
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 py-8">
+            <Brain className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p>ノードをクリックして詳細を確認</p>
+          </div>
+        )}
       </div>
     </div>
   );
