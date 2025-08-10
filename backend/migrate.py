@@ -37,7 +37,7 @@ def create_tables():
 def verify_tables():
     """テーブルの存在を確認"""
     from sqlalchemy import text
-    tables_to_check = ['questions', 'mastery', 'attempts', 'math_topics', 'science_topics', 'social_topics', 'test_results', 'test_result_details']
+    tables_to_check = ['users', 'questions', 'mastery', 'attempts', 'math_topics', 'science_topics', 'social_topics', 'test_results', 'test_result_details']
     
     with engine.connect() as conn:
         for table in tables_to_check:

@@ -125,7 +125,7 @@ class SocialDependency(Base):
 class TestResult(Base):
     __tablename__ = "test_results"
     id: Mapped[int] = Column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = Column(Integer, ForeignKey("users.id"))
+    user_id: Mapped[int] = Column(Integer)  # ForeignKey制約を削除してusersテーブルを参照しない
     subject: Mapped[str] = Column(String)  # 算数、理科、社会
     test_name: Mapped[str] = Column(String)  # テスト名
     test_date: Mapped[DateTime] = Column(DateTime(timezone=True), server_default=func.now())
@@ -136,8 +136,7 @@ class TestResult(Base):
     analysis_status: Mapped[str] = Column(String, default="pending")  # pending, processing, completed, failed
     created_at: Mapped[DateTime] = Column(DateTime(timezone=True), server_default=func.now())
     
-    # リレーション
-    user = relationship("User")
+    # リレーション（userリレーションを削除）
     details = relationship("TestResultDetail", back_populates="test_result")
 
 class TestResultDetail(Base):
