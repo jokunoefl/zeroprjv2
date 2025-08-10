@@ -2,12 +2,13 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Brain, CalendarClock, CheckCircle2, Clock3, Database, FileText, Play, School, Settings, Sparkles, Trophy, XCircle, LogIn, User } from "lucide-react";
+import { BarChart3, Brain, CalendarClock, CheckCircle2, Clock3, Database, FileText, Play, School, Settings, Sparkles, Trophy, XCircle, LogIn, User, Upload } from "lucide-react";
+import TestUpload from './test-upload';
 
 function cn(...cls: (string | false | undefined)[]) { return cls.filter(Boolean).join(" "); }
 
-export function Card({ className, children }: React.PropsWithChildren<{ className?: string }>) {
-  return <div className={cn("bg-card text-card-foreground border rounded-xl", className)}>{children}</div>;
+export function Card({ className, children, ...props }: React.PropsWithChildren<{ className?: string } & React.HTMLAttributes<HTMLDivElement>>) {
+  return <div className={cn("bg-card text-card-foreground border rounded-xl", className)} {...props}>{children}</div>;
 }
 export function CardHeader({ className, children }: React.PropsWithChildren<{ className?: string }>) {
   return <div className={cn("p-4", className)}>{children}</div>;
@@ -377,7 +378,59 @@ function RecentActivity(){
   );
 }
 
+function TestUploadCard({ onNavigate }: { onNavigate: () => void }){
+  return (
+    <Card className="rounded-2xl cursor-pointer hover:shadow-md transition-shadow" onClick={onNavigate}>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="w-5 h-5 text-blue-600"/>
+          テスト結果分析
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <span>PDF・画像ファイル対応</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Brain className="w-4 h-4 text-blue-500" />
+            <span>AIによる弱点分析</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Sparkles className="w-4 h-4 text-purple-500" />
+            <span>改善アドバイス提供</span>
+          </div>
+          <Button className="w-full rounded-xl" variant="outline">
+            テスト結果をアップロード
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
+  const [showTestUpload, setShowTestUpload] = useState(false);
+
+  if (showTestUpload) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowTestUpload(false)}
+            className="rounded-xl"
+          >
+            ← 戻る
+          </Button>
+          <h1 className="text-2xl font-bold">テスト結果分析</h1>
+        </div>
+        <TestUpload />
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-12">
       <div className="md:col-span-7 space-y-4">
@@ -405,6 +458,7 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
             </div>
           </CardContent>
         </Card>
+        <TestUploadCard onNavigate={() => setShowTestUpload(true)} />
         <RecentActivity />
       </div>
     </div>
