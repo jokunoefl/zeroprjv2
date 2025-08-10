@@ -64,6 +64,7 @@ def health():
         db = SessionLocal()
         try:
             # データベース接続をテスト
+            from sqlalchemy import text
             db.execute(text("SELECT 1"))
             db.commit()
             db_status = "connected"
