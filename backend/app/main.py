@@ -249,7 +249,34 @@ def create_tables_only():
 @app.get("/test-connection")
 def test_connection():
     """基本的な接続テスト"""
-    return {"message": "Connection successful", "timestamp": datetime.now().isoformat()}
+    import os
+    database_url = os.getenv("DATABASE_URL", "Not set")
+    # セキュリティのため、パスワード部分を隠す
+    if database_url != "Not set" and "://" in database_url:
+        parts = database_url.split("://")
+        if len(parts) == 2:
+            scheme = parts[0]
+            rest = parts[1]
+            if "@" in rest:
+                user_pass, host_db = rest.split("@", 1)
+                if ":" in user_pass:
+                    user, _ = user_pass.split(":", 1)
+                    masked_url = f"{scheme}://{user}:***@{host_db}"
+                else:
+                    masked_url = f"{scheme}://***@{host_db}"
+            else:
+                masked_url = f"{scheme}://***"
+        else:
+            masked_url = "***"
+    else:
+        masked_url = database_url
+    
+    return {
+        "message": "Connection successful",
+        "timestamp": datetime.now().isoformat(),
+        "database_url": masked_url,
+        "database_type": "postgresql" if "postgres" in database_url.lower() else "sqlite" if "sqlite" in database_url.lower() else "unknown"
+    }
 
 @app.post("/questions/{question_id}/answer")
 def grade_answer(question_id: int, answer_in: AnswerIn, db: Session = Depends(get_db)):
