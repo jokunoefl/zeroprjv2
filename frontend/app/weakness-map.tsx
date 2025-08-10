@@ -109,11 +109,12 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
 
     // 位置を割り当て（より広いスペース）
     Object.entries(levelNodes).forEach(([level, nodeIds]) => {
-      const y = parseInt(level) * 150 + 80;
-      const startX = 100;
+      const y = parseInt(level) * 180 + 100;
+      const startX = 120;
+      const spacing = Math.max(200, 800 / nodeIds.length); // ノード数に応じて間隔を調整
       
       nodeIds.forEach((nodeId, index) => {
-        const x = startX + index * 200;
+        const x = startX + index * spacing;
         positions[nodeId] = { x, y };
       });
     });
@@ -155,8 +156,17 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
     setIsDragging(false);
   };
 
+  // スクロール時のパン機能を無効化
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setZoom(prev => Math.max(0.5, Math.min(2, prev + delta)));
+    }
+  };
+
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'h-[700px]'} bg-gray-50 overflow-hidden flex flex-col`}>
+    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'h-[800px]'} bg-gray-50 overflow-hidden flex flex-col`}>
       {/* ヘッダー */}
       <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
@@ -209,21 +219,24 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
         {/* 左側: 依存マップ */}
         <div 
           ref={containerRef}
-          className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing"
+          className="flex-1 relative overflow-auto cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
         >
           <div
-            className="absolute inset-0 transition-transform duration-200"
+            className="relative transition-transform duration-200"
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: '0 0'
+              transformOrigin: '0 0',
+              minHeight: '100%',
+              minWidth: '100%'
             }}
           >
             {/* 接続線を描画 */}
-            <svg className="absolute inset-0 pointer-events-none w-full h-full">
+            <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '800px', minHeight: '600px' }}>
               {data.map(node => 
                 node.prerequisites.map(prereqId => {
                   const start = nodePositions[prereqId];
