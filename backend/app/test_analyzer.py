@@ -2,13 +2,38 @@ import os
 import tempfile
 import shutil
 from typing import List, Dict, Optional, Tuple
-from PIL import Image
-import PyPDF2
-import pytesseract
-import openai
 from datetime import datetime
 import json
 import re
+
+# 条件付きインポート
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("Warning: PIL (Pillow) not available. Image processing will be disabled.")
+
+try:
+    import PyPDF2
+    PDF2_AVAILABLE = True
+except ImportError:
+    PDF2_AVAILABLE = False
+    print("Warning: PyPDF2 not available. PDF processing will be disabled.")
+
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    print("Warning: pytesseract not available. OCR will be disabled.")
+
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("Warning: openai not available. AI analysis will be disabled.")
 
 class TestResultAnalyzer:
     def __init__(self, openai_api_key: Optional[str] = None):
@@ -19,6 +44,9 @@ class TestResultAnalyzer:
     
     def extract_text_from_pdf(self, file_path: str) -> str:
         """PDFからテキストを抽出"""
+        if not PDF2_AVAILABLE:
+            raise Exception("PDF処理が利用できません（PyPDF2がインストールされていません）")
+        
         try:
             text = ""
             with open(file_path, 'rb') as file:
@@ -31,6 +59,11 @@ class TestResultAnalyzer:
     
     def extract_text_from_image(self, file_path: str) -> str:
         """画像からテキストを抽出（OCR）"""
+        if not PIL_AVAILABLE:
+            raise Exception("画像処理が利用できません（Pillowがインストールされていません）")
+        if not TESSERACT_AVAILABLE:
+            raise Exception("OCRが利用できません（pytesseractがインストールされていません）")
+        
         try:
             image = Image.open(file_path)
             text = pytesseract.image_to_string(image, lang='jpn+eng')
@@ -157,6 +190,10 @@ class TestResultAnalyzer:
     
     def analyze_weaknesses_with_ai(self, test_result: Dict) -> Dict:
         """AIを使用して弱点分析と改善アドバイスを生成"""
+        if not OPENAI_AVAILABLE:
+            print("OpenAIライブラリが利用できません。ダミー分析を実行します。")
+            return self._generate_dummy_analysis(test_result)
+        
         if not self.openai_api_key:
             return self._generate_dummy_analysis(test_result)
         
