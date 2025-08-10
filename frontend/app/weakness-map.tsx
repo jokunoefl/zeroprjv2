@@ -77,26 +77,44 @@ interface DependencyData {
 
 // サンプルデータ（フォールバック用）
 const weakNodesSample: WeakNode[] = [
-  { id: "n1", name: "整数の範囲", mastery: 82, attempts: 40 },
-  { id: "n2", name: "小数", mastery: 76, attempts: 28 },
-  { id: "n3", name: "分数", mastery: 63, attempts: 22 },
-  { id: "n4", name: "約分と通分", mastery: 58, attempts: 18 },
-  { id: "n5", name: "分数と小数の混合計算", mastery: 69, attempts: 21 },
-  { id: "n6", name: "四則混合算", mastery: 71, attempts: 26 },
-  { id: "n7", name: "累乗と指数", mastery: 54, attempts: 19 },
-  { id: "n8", name: "正負の数", mastery: 74, attempts: 25 },
-  { id: "n9", name: "整数の性質（倍数・約数）", mastery: 65, attempts: 17 },
+  { id: "1", name: "整数の範囲", mastery: 85, attempts: 45 },
+  { id: "2", name: "小数", mastery: 78, attempts: 38 },
+  { id: "3", name: "分数", mastery: 72, attempts: 42 },
+  { id: "4", name: "約分と通分", mastery: 68, attempts: 35 },
+  { id: "5", name: "分数と小数の混合計算", mastery: 65, attempts: 28 },
+  { id: "6", name: "四則混合算", mastery: 70, attempts: 40 },
+  { id: "7", name: "累乗と指数", mastery: 58, attempts: 25 },
+  { id: "8", name: "正負の数", mastery: 75, attempts: 32 },
+  { id: "9", name: "整数の性質（倍数・約数）", mastery: 62, attempts: 30 },
+  { id: "10", name: "最小公倍数・最大公約数", mastery: 55, attempts: 22 },
+  { id: "15", name: "割合", mastery: 48, attempts: 35 },
+  { id: "16", name: "百分率・歩合", mastery: 52, attempts: 28 },
+  { id: "17", name: "割合文章題", mastery: 45, attempts: 20 },
+  { id: "25", name: "速さの基礎", mastery: 60, attempts: 25 },
+  { id: "26", name: "旅人算", mastery: 42, attempts: 18 },
+  { id: "35", name: "平面図形の基礎", mastery: 65, attempts: 30 },
+  { id: "43", name: "合同と相似", mastery: 55, attempts: 22 },
+  { id: "44", name: "相似比と面積比", mastery: 48, attempts: 18 },
 ];
 
 const weakEdgesSample: WeakEdge[] = [
-  { from: "n1", to: "n2" },
-  { from: "n2", to: "n3" },
-  { from: "n3", to: "n4" },
-  { from: "n4", to: "n5" },
-  { from: "n5", to: "n6" },
-  { from: "n6", to: "n7" },
-  { from: "n7", to: "n8" },
-  { from: "n8", to: "n9" },
+  { from: "1", to: "2" },
+  { from: "2", to: "3" },
+  { from: "3", to: "4" },
+  { from: "4", to: "5" },
+  { from: "5", to: "6" },
+  { from: "6", to: "7" },
+  { from: "7", to: "8" },
+  { from: "8", to: "9" },
+  { from: "9", to: "10" },
+  { from: "10", to: "15" },
+  { from: "15", to: "16" },
+  { from: "16", to: "17" },
+  { from: "17", to: "25" },
+  { from: "25", to: "26" },
+  { from: "26", to: "35" },
+  { from: "35", to: "43" },
+  { from: "43", to: "44" },
 ];
 
 function masteryColor(m: number){
@@ -218,20 +236,27 @@ export default function App(){
         setLoading(true);
         const windowWithAPI = window as WindowWithAPI;
         if (windowWithAPI.API_BASE) {
-          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/math/flow`);
+          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/math/flow`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            // タイムアウトを設定
+            signal: AbortSignal.timeout(5000)
+          });
           if (response.ok) {
             const result = await response.json();
             setDependencyData(result.topics || []);
           } else {
-            // APIが利用できない場合はサンプルデータを使用
+            console.warn('API response not ok, using sample data');
             setDependencyData([]);
           }
         } else {
-          // ローカル開発環境の場合はサンプルデータを使用
+          console.log('No API_BASE configured, using sample data');
           setDependencyData([]);
         }
       } catch (error) {
-        console.error('Failed to fetch dependencies:', error);
+        console.warn('Failed to fetch dependencies, using sample data:', error);
         setDependencyData([]);
       } finally {
         setLoading(false);
@@ -334,20 +359,27 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
         setLoading(true);
         const windowWithAPI = window as WindowWithAPI;
         if (windowWithAPI.API_BASE) {
-          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/${subject}/flow`);
+          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/${subject}/flow`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            // タイムアウトを設定
+            signal: AbortSignal.timeout(5000)
+          });
           if (response.ok) {
             const result = await response.json();
             setDependencyData(result.topics || []);
           } else {
-            // APIが利用できない場合はサンプルデータを使用
+            console.warn('API response not ok, using sample data');
             setDependencyData([]);
           }
         } else {
-          // ローカル開発環境の場合はサンプルデータを使用
+          console.log('No API_BASE configured, using sample data');
           setDependencyData([]);
         }
       } catch (error) {
-        console.error('Failed to fetch dependencies:', error);
+        console.warn('Failed to fetch dependencies, using sample data:', error);
         setDependencyData([]);
       } finally {
         setLoading(false);
