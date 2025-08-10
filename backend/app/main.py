@@ -16,6 +16,36 @@ from datetime import datetime, timedelta
 
 app = FastAPI(title="ZeroBasics API")
 
+@app.get("/")
+def root():
+    """ルートエンドポイント"""
+    return {
+        "message": "ZeroBasics API is running",
+        "version": "1.0.0",
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "openapi": "/openapi.json"
+        }
+    }
+
+@app.get("/debug")
+def debug():
+    """デバッグ情報エンドポイント"""
+    import os
+    return {
+        "message": "Debug information",
+        "timestamp": datetime.now().isoformat(),
+        "environment": {
+            "DATABASE_URL": "***" if os.getenv("DATABASE_URL") else "Not set",
+            "PYTHON_VERSION": os.getenv("PYTHON_VERSION", "Not set"),
+            "PORT": os.getenv("PORT", "Not set")
+        },
+        "database_type": "postgresql" if os.getenv("DATABASE_URL", "").startswith("postgres") else "sqlite"
+    }
+
 # CORS settings
 origins = ["*"] # Adjust for production
 app.add_middleware(
@@ -36,12 +66,15 @@ def get_db():
 
 @app.on_event("startup")
 async def startup_event():
-    print("Starting database initialization...")
+    print("🚀 Starting ZeroBasics API...")
+    print(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
+    print(f"Database URL: {os.getenv('DATABASE_URL', 'Not set')[:20]}...")
     
     # Create all tables first (including test result tables)
     try:
+        print("📊 Creating database tables...")
         Base.metadata.create_all(bind=engine)
-        print("Tables created successfully")
+        print("✅ Tables created successfully")
         
         # Verify test result tables specifically
         from sqlalchemy import text
@@ -61,12 +94,13 @@ async def startup_event():
         db.close()
         
     except Exception as e:
-        print(f"Error creating tables: {e}")
-        # Continue startup even if table creation fails
+        print(f"❌ Error creating tables: {e}")
+        print("⚠️  Continuing startup despite table creation error")
     
     # Skip seeding during startup for faster deployment
     # Seeding can be done manually via /init-db-simple endpoint
-    print("Startup completed - seeding can be done manually")
+    print("✅ Startup completed - seeding can be done manually")
+    print("🌐 API is ready to serve requests")
 
 class AnswerIn(BaseModel):
     user_answer: str
