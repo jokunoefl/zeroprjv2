@@ -137,19 +137,25 @@ def init_database_simple(db: Session = Depends(get_db)):
                 import time
                 time.sleep(2)  # Wait before retry
         
-        # Wait a moment for tables to be created
+        # Wait a moment for tables to be created (PostgreSQL needs more time)
         import time
-        time.sleep(3)
+        time.sleep(5)
         
-        # Verify tables exist before seeding
-        try:
-            from sqlalchemy import text
-            db.execute(text("SELECT 1 FROM questions LIMIT 1"))
-            db.commit()
-            print("Questions table verified")
-        except Exception as e:
-            print(f"Questions table verification failed: {e}")
-            return {"error": f"Questions table not accessible: {str(e)}"}
+        # Verify tables exist before seeding (with retry)
+        max_verify_retries = 3
+        for verify_attempt in range(max_verify_retries):
+            try:
+                from sqlalchemy import text
+                db.execute(text("SELECT 1 FROM questions LIMIT 1"))
+                db.commit()
+                print("Questions table verified")
+                break
+            except Exception as e:
+                print(f"Questions table verification attempt {verify_attempt + 1} failed: {e}")
+                if verify_attempt == max_verify_retries - 1:
+                    return {"error": f"Questions table not accessible after {max_verify_retries} attempts: {str(e)}"}
+                time.sleep(3)  # Wait before retry
+                db.rollback()
         
         # Seed the database
         try:
@@ -209,8 +215,25 @@ def check_tables(db: Session = Depends(get_db)):
 def create_tables_only():
     """テーブルのみを作成するエンドポイント"""
     try:
+        print("Creating tables only...")
         Base.metadata.create_all(bind=engine)
-        return {"message": "Tables created successfully"}
+        
+        # Wait and verify
+        import time
+        time.sleep(3)
+        
+        # Check if tables were created
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1 FROM questions LIMIT 1"))
+            db.commit()
+            db.close()
+            return {"message": "Tables created and verified successfully"}
+        except Exception as e:
+            db.close()
+            return {"error": f"Tables created but verification failed: {str(e)}"}
+            
     except Exception as e:
         return {"error": f"Failed to create tables: {str(e)}"}
 
