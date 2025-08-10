@@ -75,8 +75,8 @@ interface DependencyData {
   domain?: string;
 }
 
-// サンプルデータ（フォールバック用）
-const weakNodesSample: WeakNode[] = [
+// 算数のサンプルデータ（フォールバック用）
+const mathNodesSample: WeakNode[] = [
   { id: "1", name: "整数の範囲", mastery: 85, attempts: 45 },
   { id: "2", name: "小数", mastery: 78, attempts: 38 },
   { id: "3", name: "分数", mastery: 72, attempts: 42 },
@@ -97,7 +97,38 @@ const weakNodesSample: WeakNode[] = [
   { id: "44", name: "相似比と面積比", mastery: 48, attempts: 18 },
 ];
 
-const weakEdgesSample: WeakEdge[] = [
+// 理解（国語）のサンプルデータ
+const japaneseNodesSample: WeakNode[] = [
+  // 漢字・語彙
+  { id: "1", name: "漢字の読み（音読み・訓読み）", mastery: 80, attempts: 45 },
+  { id: "2", name: "漢字の書き取り", mastery: 75, attempts: 42 },
+  { id: "3", name: "同音異義語・同訓異字", mastery: 72, attempts: 38 },
+  { id: "4", name: "類義語・対義語", mastery: 68, attempts: 35 },
+  { id: "5", name: "慣用句・ことわざ", mastery: 65, attempts: 32 },
+  { id: "6", name: "四字熟語", mastery: 62, attempts: 28 },
+  // 文法
+  { id: "11", name: "品詞の識別", mastery: 70, attempts: 40 },
+  { id: "12", name: "文の成分（主語・述語・修飾語）", mastery: 68, attempts: 36 },
+  { id: "13", name: "敬語の使い方", mastery: 65, attempts: 30 },
+  { id: "14", name: "接続詞・指示語", mastery: 72, attempts: 34 },
+  { id: "15", name: "助詞・助動詞", mastery: 58, attempts: 25 },
+  // 読解
+  { id: "21", name: "指示語の内容", mastery: 75, attempts: 42 },
+  { id: "22", name: "接続語の働き", mastery: 72, attempts: 38 },
+  { id: "23", name: "段落の要約", mastery: 68, attempts: 35 },
+  { id: "24", name: "文章の要旨", mastery: 65, attempts: 32 },
+  { id: "25", name: "筆者の主張", mastery: 62, attempts: 28 },
+  { id: "26", name: "比喩・表現技法", mastery: 58, attempts: 25 },
+  // 作文
+  { id: "31", name: "文章の構成", mastery: 70, attempts: 36 },
+  { id: "32", name: "段落の書き方", mastery: 68, attempts: 34 },
+  { id: "33", name: "接続語の使い方", mastery: 65, attempts: 30 },
+  { id: "34", name: "敬語の使い分け", mastery: 62, attempts: 28 },
+  { id: "35", name: "文章の推敲", mastery: 55, attempts: 22 },
+];
+
+// 算数の依存関係
+const mathEdgesSample: WeakEdge[] = [
   { from: "1", to: "2" },
   { from: "2", to: "3" },
   { from: "3", to: "4" },
@@ -115,6 +146,163 @@ const weakEdgesSample: WeakEdge[] = [
   { from: "26", to: "35" },
   { from: "35", to: "43" },
   { from: "43", to: "44" },
+];
+
+// 理解（国語）の依存関係
+const japaneseEdgesSample: WeakEdge[] = [
+  // 漢字・語彙の流れ
+  { from: "1", to: "2" },
+  { from: "2", to: "3" },
+  { from: "3", to: "4" },
+  { from: "4", to: "5" },
+  { from: "5", to: "6" },
+  // 文法の流れ
+  { from: "11", to: "12" },
+  { from: "12", to: "13" },
+  { from: "13", to: "14" },
+  { from: "14", to: "15" },
+  // 読解の流れ
+  { from: "21", to: "22" },
+  { from: "22", to: "23" },
+  { from: "23", to: "24" },
+  { from: "24", to: "25" },
+  { from: "25", to: "26" },
+  // 作文の流れ
+  { from: "31", to: "32" },
+  { from: "32", to: "33" },
+  { from: "33", to: "34" },
+  { from: "34", to: "35" },
+  // 分野間の関連
+  { from: "6", to: "11" },  // 四字熟語 → 品詞の識別
+  { from: "15", to: "21" }, // 助詞・助動詞 → 指示語の内容
+  { from: "26", to: "31" }, // 比喩・表現技法 → 文章の構成
+];
+
+// 理科のサンプルデータ
+const scienceNodesSample: WeakNode[] = [
+  { id: "1", name: "光の性質（反射・屈折）", mastery: 75, attempts: 30 },
+  { id: "2", name: "光の作図（鏡・レンズ）", mastery: 68, attempts: 25 },
+  { id: "3", name: "音の性質（高さ・大きさ・波）", mastery: 72, attempts: 28 },
+  { id: "4", name: "音の伝わり方（空気・水・金属）", mastery: 65, attempts: 22 },
+  { id: "5", name: "電流と回路（直列・並列）", mastery: 58, attempts: 35 },
+  { id: "6", name: "オームの法則と応用計算", mastery: 52, attempts: 30 },
+  { id: "7", name: "電磁石の性質", mastery: 48, attempts: 20 },
+  { id: "8", name: "電磁誘導と応用", mastery: 45, attempts: 18 },
+  { id: "9", name: "力のはたらき（てこ・滑車）", mastery: 62, attempts: 25 },
+  { id: "10", name: "力のつり合いとモーメント計算", mastery: 55, attempts: 22 },
+  { id: "21", name: "状態変化（融解・凝固・蒸発・沸騰・凝縮）", mastery: 70, attempts: 32 },
+  { id: "22", name: "物質の分類（純物質・混合物）", mastery: 65, attempts: 28 },
+  { id: "23", name: "気体の発生方法と性質", mastery: 58, attempts: 25 },
+  { id: "24", name: "水溶液の性質（酸・アルカリ・中和）", mastery: 52, attempts: 30 },
+  { id: "25", name: "中和計算", mastery: 48, attempts: 20 },
+  { id: "41", name: "植物の分類と特徴", mastery: 75, attempts: 35 },
+  { id: "42", name: "光合成と呼吸", mastery: 68, attempts: 30 },
+  { id: "43", name: "種子の発芽条件", mastery: 72, attempts: 25 },
+  { id: "44", name: "花のつくりとはたらき", mastery: 65, attempts: 28 },
+  { id: "45", name: "受粉と受精", mastery: 58, attempts: 22 },
+  { id: "61", name: "地層と化石", mastery: 70, attempts: 30 },
+  { id: "62", name: "火山と火成岩", mastery: 65, attempts: 25 },
+  { id: "63", name: "地震の仕組みと震度・マグニチュード", mastery: 62, attempts: 28 },
+  { id: "64", name: "プレートテクトニクス", mastery: 55, attempts: 20 },
+  { id: "65", name: "気象の観測（温度・湿度・気圧）", mastery: 68, attempts: 32 },
+];
+
+const scienceEdgesSample: WeakEdge[] = [
+  // 物理
+  { from: "1", to: "2" },
+  { from: "2", to: "3" },
+  { from: "3", to: "4" },
+  { from: "4", to: "5" },
+  { from: "5", to: "6" },
+  { from: "6", to: "7" },
+  { from: "7", to: "8" },
+  { from: "8", to: "9" },
+  { from: "9", to: "10" },
+  // 化学
+  { from: "21", to: "22" },
+  { from: "22", to: "23" },
+  { from: "23", to: "24" },
+  { from: "24", to: "25" },
+  // 生物
+  { from: "41", to: "42" },
+  { from: "42", to: "43" },
+  { from: "43", to: "44" },
+  { from: "44", to: "45" },
+  // 地学
+  { from: "61", to: "62" },
+  { from: "62", to: "63" },
+  { from: "63", to: "64" },
+  { from: "64", to: "65" },
+];
+
+// 社会のサンプルデータ
+const socialNodesSample: WeakNode[] = [
+  // 地理
+  { id: "1", name: "日本の都道府県と県庁所在地", mastery: 80, attempts: 40 },
+  { id: "2", name: "日本の地方区分（8地方区分）", mastery: 75, attempts: 35 },
+  { id: "3", name: "日本の主要山地・山脈・山岳", mastery: 68, attempts: 30 },
+  { id: "4", name: "日本の主要河川と流域", mastery: 65, attempts: 28 },
+  { id: "5", name: "日本の主要平野と盆地", mastery: 62, attempts: 25 },
+  { id: "6", name: "日本の気候区分", mastery: 58, attempts: 32 },
+  { id: "7", name: "季節風と降水量の分布", mastery: 55, attempts: 20 },
+  { id: "8", name: "農業地域の特徴（稲作・畑作・酪農）", mastery: 52, attempts: 22 },
+  { id: "9", name: "漁業の種類と漁場", mastery: 48, attempts: 18 },
+  { id: "10", name: "工業地域の特徴（太平洋ベルトなど）", mastery: 45, attempts: 25 },
+  // 歴史
+  { id: "26", name: "旧石器時代と縄文時代の暮らし", mastery: 70, attempts: 30 },
+  { id: "27", name: "弥生時代と稲作の伝来", mastery: 65, attempts: 28 },
+  { id: "28", name: "古墳時代と大和政権", mastery: 62, attempts: 25 },
+  { id: "29", name: "飛鳥時代と大化の改新", mastery: 58, attempts: 22 },
+  { id: "30", name: "奈良時代と平城京", mastery: 55, attempts: 20 },
+  { id: "31", name: "平安時代の貴族文化", mastery: 52, attempts: 18 },
+  { id: "32", name: "鎌倉時代と武士の台頭", mastery: 48, attempts: 25 },
+  { id: "33", name: "室町時代と戦国時代", mastery: 45, attempts: 22 },
+  { id: "34", name: "安土桃山時代と天下統一", mastery: 42, attempts: 20 },
+  { id: "35", name: "江戸時代の政治と身分制度", mastery: 40, attempts: 18 },
+  // 公民
+  { id: "51", name: "日本国憲法の三大原則", mastery: 75, attempts: 35 },
+  { id: "52", name: "基本的人権の種類", mastery: 70, attempts: 32 },
+  { id: "53", name: "三権分立の仕組み", mastery: 65, attempts: 30 },
+  { id: "54", name: "国会の役割と仕組み", mastery: 62, attempts: 28 },
+  { id: "55", name: "内閣の役割と行政機関", mastery: 58, attempts: 25 },
+  { id: "56", name: "裁判所の役割", mastery: 55, attempts: 22 },
+  { id: "57", name: "地方自治と住民参加", mastery: 52, attempts: 20 },
+  { id: "58", name: "選挙制度と政治参加", mastery: 48, attempts: 18 },
+  { id: "59", name: "政党と政治資金", mastery: 45, attempts: 15 },
+  { id: "60", name: "国際連合と国際協力", mastery: 42, attempts: 12 },
+];
+
+const socialEdgesSample: WeakEdge[] = [
+  // 地理
+  { from: "1", to: "2" },
+  { from: "2", to: "3" },
+  { from: "3", to: "4" },
+  { from: "4", to: "5" },
+  { from: "5", to: "6" },
+  { from: "6", to: "7" },
+  { from: "7", to: "8" },
+  { from: "8", to: "9" },
+  { from: "9", to: "10" },
+  // 歴史
+  { from: "26", to: "27" },
+  { from: "27", to: "28" },
+  { from: "28", to: "29" },
+  { from: "29", to: "30" },
+  { from: "30", to: "31" },
+  { from: "31", to: "32" },
+  { from: "32", to: "33" },
+  { from: "33", to: "34" },
+  { from: "34", to: "35" },
+  // 公民
+  { from: "51", to: "52" },
+  { from: "52", to: "53" },
+  { from: "53", to: "54" },
+  { from: "54", to: "55" },
+  { from: "55", to: "56" },
+  { from: "56", to: "57" },
+  { from: "57", to: "58" },
+  { from: "58", to: "59" },
+  { from: "59", to: "60" },
 ];
 
 function masteryColor(m: number){
@@ -198,12 +386,71 @@ function WeaknessMap({ nodes, edges, onSelect }:{ nodes: WeakNode[]; edges: Weak
   );
 }
 
-function WeaknessDetail({ node, onStart }:{ node: WeakNode | null; onStart: (topic?: string)=>void }){
+function WeaknessDetail({ node, onStart, subject = "math" }:{ node: WeakNode | null; onStart: (topic?: string)=>void; subject?: string }){
   if(!node){
     return (<div className="text-sm text-muted-foreground p-3">左のマップから単元を選ぶと、ミス傾向と即時練習の導線が表示されます。</div>);
   }
-  const chips = node.name.includes("割合") ? ["式設定", "百分率⇄小数", "もとにする量"] : node.name.includes("速さ") ? ["単位換算", "比の整え", "図の読み取り"] : ["計算ミス", "条件整理", "単位"];
-  const topic = node.name.includes("割合") ? "割合" : node.name.includes("速さ") ? "速さ" : node.name.includes("相似") ? "相似" : "計算";
+
+  // 科目別のミス傾向とトピックを設定
+  const getMistakeChips = (nodeName: string, subject: string) => {
+    switch (subject) {
+      case "japanese":
+        if (nodeName.includes("漢字")) return ["読み間違い", "書き間違い", "同音異義語"];
+        if (nodeName.includes("文法")) return ["品詞の識別", "文の成分", "敬語の使い方"];
+        if (nodeName.includes("読解")) return ["指示語の内容", "接続語の働き", "要旨の把握"];
+        if (nodeName.includes("作文")) return ["文章の構成", "段落の書き方", "敬語の使い分け"];
+        return ["語彙力", "理解力", "表現力"];
+      case "science":
+        if (nodeName.includes("光")) return ["作図ミス", "反射・屈折の理解", "レンズの性質"];
+        if (nodeName.includes("音")) return ["波の性質", "伝わり方", "高さ・大きさ"];
+        if (nodeName.includes("電流")) return ["回路の理解", "オームの法則", "計算ミス"];
+        if (nodeName.includes("力")) return ["てこの原理", "滑車の仕組み", "モーメント計算"];
+        return ["実験の理解", "計算ミス", "概念の理解"];
+      case "social":
+        if (nodeName.includes("地理")) return ["地名の暗記", "位置関係", "産業の特徴"];
+        if (nodeName.includes("歴史")) return ["年代の暗記", "因果関係", "人物の役割"];
+        if (nodeName.includes("公民")) return ["制度の理解", "権利と義務", "政治の仕組み"];
+        return ["暗記", "理解", "関連付け"];
+      case "math":
+      default:
+        if (nodeName.includes("割合")) return ["式設定", "百分率⇄小数", "もとにする量"];
+        if (nodeName.includes("速さ")) return ["単位換算", "比の整え", "図の読み取り"];
+        if (nodeName.includes("相似")) return ["相似比", "面積比", "作図"];
+        return ["計算ミス", "条件整理", "単位"];
+    }
+  };
+
+  const getTopic = (nodeName: string, subject: string) => {
+    switch (subject) {
+      case "japanese":
+        if (nodeName.includes("漢字")) return "漢字";
+        if (nodeName.includes("文法")) return "文法";
+        if (nodeName.includes("読解")) return "読解";
+        if (nodeName.includes("作文")) return "作文";
+        return "国語";
+      case "science":
+        if (nodeName.includes("光") || nodeName.includes("音") || nodeName.includes("電流") || nodeName.includes("力")) return "物理";
+        if (nodeName.includes("状態") || nodeName.includes("物質") || nodeName.includes("水溶液")) return "化学";
+        if (nodeName.includes("植物") || nodeName.includes("光合成")) return "生物";
+        if (nodeName.includes("地層") || nodeName.includes("火山") || nodeName.includes("地震")) return "地学";
+        return "理科";
+      case "social":
+        if (nodeName.includes("都道府県") || nodeName.includes("地方") || nodeName.includes("山地") || nodeName.includes("河川")) return "地理";
+        if (nodeName.includes("時代") || nodeName.includes("時代の暮らし")) return "歴史";
+        if (nodeName.includes("憲法") || nodeName.includes("三権") || nodeName.includes("国会")) return "公民";
+        return "社会";
+      case "math":
+      default:
+        if (nodeName.includes("割合")) return "割合";
+        if (nodeName.includes("速さ")) return "速さ";
+        if (nodeName.includes("相似")) return "相似";
+        return "計算";
+    }
+  };
+
+  const chips = getMistakeChips(node.name, subject);
+  const topic = getTopic(node.name, subject);
+
   return (
     <div className="space-y-3">
       <div className="text-sm"><span className="font-semibold">選択：</span>{node.name}</div>
@@ -228,6 +475,7 @@ export default function App(){
   const [lastPack, setLastPack] = useState<string|undefined>(undefined);
   const [dependencyData, setDependencyData] = useState<DependencyData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentSubject, setCurrentSubject] = useState<string>("math");
 
   // データベースから依存関係データを取得
   useEffect(() => {
@@ -236,7 +484,7 @@ export default function App(){
         setLoading(true);
         const windowWithAPI = window as WindowWithAPI;
         if (windowWithAPI.API_BASE) {
-          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/math/flow`, {
+          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/${currentSubject}/flow`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -264,13 +512,23 @@ export default function App(){
     };
 
     fetchDependencies();
-  }, []);
+  }, [currentSubject]);
 
   // 依存関係データをWeakNodeとWeakEdgeに変換
   const { nodes, edges } = useMemo(() => {
     if (dependencyData.length === 0) {
-      // サンプルデータを使用
-      return { nodes: weakNodesSample, edges: weakEdgesSample };
+      // サンプルデータを使用（科目別）
+      switch (currentSubject) {
+        case "japanese":
+          return { nodes: japaneseNodesSample, edges: japaneseEdgesSample };
+        case "science":
+          return { nodes: scienceNodesSample, edges: scienceEdgesSample };
+        case "social":
+          return { nodes: socialNodesSample, edges: socialEdgesSample };
+        case "math":
+        default:
+          return { nodes: mathNodesSample, edges: mathEdgesSample };
+      }
     }
 
     // データベースデータを変換
@@ -294,7 +552,17 @@ export default function App(){
     });
 
     return { nodes, edges };
-  }, [dependencyData]);
+  }, [dependencyData, currentSubject]);
+
+  const getSubjectName = (subject: string) => {
+    switch (subject) {
+      case "japanese": return "理解（国語）";
+      case "science": return "理科";
+      case "social": return "社会";
+      case "math": return "算数";
+      default: return "算数";
+    }
+  };
 
   const startQuickPack = async (topic?: string)=>{
     setLastPack(topic||"計算");
@@ -304,7 +572,7 @@ export default function App(){
   if (loading) {
     return (
       <div className="p-4 space-y-4">
-        <div className="text-lg font-semibold">弱点マップ（算数）</div>
+        <div className="text-lg font-semibold">弱点マップ（{getSubjectName(currentSubject)}）</div>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -317,13 +585,41 @@ export default function App(){
 
   return (
     <div className="p-4 space-y-4">
-      <div className="text-lg font-semibold">弱点マップ（算数）</div>
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-semibold">弱点マップ（{getSubjectName(currentSubject)}）</div>
+        <div className="flex gap-2">
+          <button 
+            className={`px-3 py-1 rounded-lg text-sm ${currentSubject === "math" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}
+            onClick={() => setCurrentSubject("math")}
+          >
+            算数
+          </button>
+          <button 
+            className={`px-3 py-1 rounded-lg text-sm ${currentSubject === "japanese" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}
+            onClick={() => setCurrentSubject("japanese")}
+          >
+            理解
+          </button>
+          <button 
+            className={`px-3 py-1 rounded-lg text-sm ${currentSubject === "science" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}
+            onClick={() => setCurrentSubject("science")}
+          >
+            理科
+          </button>
+          <button 
+            className={`px-3 py-1 rounded-lg text-sm ${currentSubject === "social" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}
+            onClick={() => setCurrentSubject("social")}
+          >
+            社会
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-2xl border p-3 bg-white">
           <WeaknessMap nodes={nodes} edges={edges} onSelect={setSelected} />
         </div>
         <div className="rounded-2xl border p-3 bg-white">
-          <WeaknessDetail node={selected} onStart={startQuickPack} />
+          <WeaknessDetail node={selected} onStart={startQuickPack} subject={currentSubject} />
           {lastPack && (
             <div className="mt-3 text-xs text-muted-foreground">開始しました：{lastPack} の3問クイックドリル（モック）</div>
           )}
