@@ -17,3 +17,6 @@ frontend/.env.local
 *.sqlite
 # OS
 .DS_Store
+
+# Railway
+.railway/
