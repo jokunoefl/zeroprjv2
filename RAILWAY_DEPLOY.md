@@ -39,6 +39,13 @@ DATABASE_URL=postgresql://username:password@host:port/database
 
 ## 6. トラブルシューティング
 
+### Nixpacksビルドエラーが発生した場合
+- プロジェクトルートに以下のファイルが存在することを確認：
+  - `main.py` - Pythonプロジェクト認識用
+  - `requirements.txt` - 依存関係
+  - `runtime.txt` - Pythonバージョン指定
+  - `setup.py` - プロジェクト設定
+
 ### デプロイエラーが発生した場合
 1. Railwayダッシュボード → プロジェクト → Deployments でログを確認
 2. 環境変数が正しく設定されているか確認
@@ -60,3 +67,17 @@ Railwayダッシュボード → プロジェクト → Settings → Scale で�
 - 最小レプリカ数: 1
 - 最大レプリカ数: 3
 - 自動スケーリングを有効化
+
+## 9. ファイル構造
+```
+zeroprjv2/
+├── main.py              # Railway用エントリーポイント
+├── requirements.txt     # Python依存関係
+├── runtime.txt         # Pythonバージョン指定
+├── setup.py           # プロジェクト設定
+├── railway.json       # Railway設定
+├── backend/           # 実際のアプリケーション
+│   └── app/
+│       └── main.py    # FastAPIアプリケーション
+└── frontend/          # Next.jsフロントエンド
+```

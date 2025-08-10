@@ -32,12 +32,19 @@ def get_db():
 
 @app.on_event("startup")
 async def startup_event():
+    print("Starting database initialization...")
+    
     # Create all tables first
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Tables created successfully")
+    except Exception as e:
+        print(f"Error creating tables: {e}")
+        return
     
     # Ensure tables are created by checking table existence
     import asyncio
-    await asyncio.sleep(0.5)  # Increased delay
+    await asyncio.sleep(1.0)  # Increased delay
     
     # Verify table creation by attempting a simple query
     db = SessionLocal()
@@ -45,23 +52,48 @@ async def startup_event():
         # Test if tables exist by checking if we can query them
         db.execute("SELECT 1 FROM questions LIMIT 1")
         db.commit()
-    except Exception:
-        # Tables don't exist yet, wait a bit more
-        await asyncio.sleep(1.0)
+        print("Questions table verified")
+        
+        # Also check mastery table
+        db.execute("SELECT 1 FROM mastery LIMIT 1")
+        db.commit()
+        print("Mastery table verified")
+        
+    except Exception as e:
+        # Tables don't exist yet, wait a bit more and retry
+        print(f"Table verification failed: {e}")
+        await asyncio.sleep(2.0)
         db.rollback()
+        
+        # Retry table creation
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("Tables recreated successfully")
+        except Exception as e2:
+            print(f"Error recreating tables: {e2}")
+            return
     finally:
         db.close()
     
     # Now proceed with seeding
     db = SessionLocal()
     try:
+        print("Starting seeding process...")
         seed_basic(db)
+        print("Basic seeding completed")
         seed_math_topics(db)
+        print("Math topics seeded")
         seed_science_topics(db)
+        print("Science topics seeded")
         seed_social_topics(db)
+        print("Social topics seeded")
         seed_math_dependencies(db)
+        print("Math dependencies seeded")
         seed_science_dependencies(db)
+        print("Science dependencies seeded")
         seed_social_dependencies(db)
+        print("Social dependencies seeded")
+        print("All seeding completed successfully")
     except Exception as e:
         print(f"Error during seeding: {e}")
         # Continue startup even if seeding fails
@@ -81,6 +113,53 @@ class NextQuestionReq(BaseModel):
 @app.get("/health")
 def health():
     return {"ok": True}
+
+@app.post("/init-db")
+def init_database(db: Session = Depends(get_db)):
+    """手動でデータベースを初期化するエンドポイント"""
+    try:
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        
+        # Seed the database
+        seed_basic(db)
+        seed_math_topics(db)
+        seed_science_topics(db)
+        seed_social_topics(db)
+        seed_math_dependencies(db)
+        seed_science_dependencies(db)
+        seed_social_dependencies(db)
+        
+        return {"message": "Database initialized successfully"}
+    except Exception as e:
+        return {"error": f"Database initialization failed: {str(e)}"}
+
+@app.get("/check-tables")
+def check_tables(db: Session = Depends(get_db)):
+    """テーブルの存在を確認するエンドポイント"""
+    tables = {}
+    try:
+        # Check questions table
+        db.execute("SELECT 1 FROM questions LIMIT 1")
+        tables["questions"] = "exists"
+    except Exception:
+        tables["questions"] = "missing"
+    
+    try:
+        # Check mastery table
+        db.execute("SELECT 1 FROM mastery LIMIT 1")
+        tables["mastery"] = "exists"
+    except Exception:
+        tables["mastery"] = "missing"
+    
+    try:
+        # Check attempts table
+        db.execute("SELECT 1 FROM attempts LIMIT 1")
+        tables["attempts"] = "exists"
+    except Exception:
+        tables["attempts"] = "missing"
+    
+    return {"tables": tables}
 
 @app.post("/questions/{question_id}/answer")
 def grade_answer(question_id: int, answer_in: AnswerIn, db: Session = Depends(get_db)):
@@ -162,26 +241,55 @@ def get_question(question_id: int, db: Session = Depends(get_db)):
 
 @app.post("/next-question")
 def next_question(req: NextQuestionReq, db: Session = Depends(get_db)):
-    # Prioritize questions due for review
-    due_masteries = db.query(Mastery).filter(
-        Mastery.user_id == req.user_id,
-        Mastery.next_review_at <= datetime.now()
-    ).order_by(Mastery.next_review_at.asc()).all()
+    try:
+        # First check if mastery table exists
+        try:
+            db.execute("SELECT 1 FROM mastery LIMIT 1")
+            db.commit()
+        except Exception:
+            # Mastery table doesn't exist, skip mastery-based logic
+            print("Mastery table not found, skipping mastery-based question selection")
+            db.rollback()
+            
+            # Just return a random question
+            questions = db.query(Question).all()
+            if questions:
+                return {"question": random.choice(questions)}
+            else:
+                return {"question": None, "message": "No questions available"}
+        
+        # Prioritize questions due for review
+        due_masteries = db.query(Mastery).filter(
+            Mastery.user_id == req.user_id,
+            Mastery.next_review_at <= datetime.now()
+        ).order_by(Mastery.next_review_at.asc()).all()
 
-    if due_masteries:
-        # Pick a random question from the due ones
-        mastery = random.choice(due_masteries)
-        question = db.query(Question).filter(Question.id == mastery.question_id).first()
-        if question:
-            return {"question": question}
+        if due_masteries:
+            # Pick a random question from the due ones
+            mastery = random.choice(due_masteries)
+            question = db.query(Question).filter(Question.id == mastery.question_id).first()
+            if question:
+                return {"question": question}
 
-    # If no due questions, pick a random question not yet mastered or with low mastery
-    # For simplicity, just pick a random one from the seed data
-    questions = db.query(Question).all()
-    if questions:
-        return {"question": random.choice(questions)}
-    
-    return {"question": None}
+        # If no due questions, pick a random question not yet mastered or with low mastery
+        # For simplicity, just pick a random one from the seed data
+        questions = db.query(Question).all()
+        if questions:
+            return {"question": random.choice(questions)}
+        
+        return {"question": None}
+        
+    except Exception as e:
+        print(f"Error in next_question: {e}")
+        # Fallback: try to get any question
+        try:
+            questions = db.query(Question).all()
+            if questions:
+                return {"question": random.choice(questions)}
+        except Exception as e2:
+            print(f"Fallback error: {e2}")
+        
+        return {"question": None, "error": "Database error occurred"}
 
 # 算数の学習依存関係を活用したAPI
 @app.get("/math/prerequisites/{topic_name}")
