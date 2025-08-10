@@ -84,7 +84,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ノードの位置を計算（改良されたレイアウト）
+  // ノードの位置を計算（縦方向フロー図レイアウト）
   const nodePositions = useMemo(() => {
     const positions: Record<string, { x: number; y: number }> = {};
     const levelMap: Record<string, number> = {};
@@ -107,14 +107,15 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
       levelNodes[level].push(node.id);
     });
 
-    // 位置を割り当て（より広いスペース）
+    // 縦方向フロー図として位置を割り当て
     Object.entries(levelNodes).forEach(([level, nodeIds]) => {
-      const y = parseInt(level) * 180 + 100;
-      const startX = 120;
-      const spacing = Math.max(200, 800 / nodeIds.length); // ノード数に応じて間隔を調整
+      const y = parseInt(level) * 250 + 150; // 縦方向の間隔を広げる
+      const centerX = 400; // 中央配置
+      const totalWidth = (nodeIds.length - 1) * 300; // ノード間の幅
+      const startX = centerX - totalWidth / 2;
       
       nodeIds.forEach((nodeId, index) => {
-        const x = startX + index * spacing;
+        const x = startX + index * 300;
         positions[nodeId] = { x, y };
       });
     });
@@ -166,12 +167,12 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
   };
 
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'h-[800px]'} bg-gray-50 overflow-hidden flex flex-col`}>
+    <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'h-[900px]'} bg-gray-50 overflow-hidden flex flex-col`}>
       {/* ヘッダー */}
       <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
           <Brain className="w-6 h-6 text-blue-600" />
-          <h3 className="text-lg font-semibold">学習依存マップ</h3>
+          <h3 className="text-lg font-semibold">学習依存フロー図</h3>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="w-2 h-2 rounded-full bg-red-500"></span>
             <span>弱点</span>
@@ -179,6 +180,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
             <span>要復習</span>
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
             <span>習得済み</span>
+            <span className="ml-2 text-blue-600">↓ 学習の流れ</span>
           </div>
         </div>
         
@@ -236,7 +238,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
             }}
           >
             {/* 接続線を描画 */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '800px', minHeight: '600px' }}>
+            <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '800px', minHeight: '1200px' }}>
               {data.map(node => 
                 node.prerequisites.map(prereqId => {
                   const start = nodePositions[prereqId];
@@ -245,16 +247,19 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
                   
                   const isHovered = hoveredNode === node.id || hoveredNode === prereqId;
                   
+                  // 曲線の制御点を計算（縦方向フローに適した曲線）
+                  const midY = (start.y + end.y) / 2;
+                  const controlY1 = start.y + (midY - start.y) * 0.3;
+                  const controlY2 = end.y - (end.y - midY) * 0.3;
+                  
                   return (
-                    <line
+                    <path
                       key={`${prereqId}-${node.id}`}
-                      x1={start.x}
-                      y1={start.y}
-                      x2={end.x}
-                      y2={end.y}
+                      d={`M ${start.x} ${start.y} C ${start.x} ${controlY1} ${end.x} ${controlY2} ${end.x} ${end.y}`}
                       stroke={isHovered ? "#3B82F6" : "#CBD5E1"}
                       strokeWidth={isHovered ? 3 : 2}
                       strokeDasharray={isHovered ? "5,5" : "none"}
+                      fill="none"
                       markerEnd="url(#arrowhead)"
                     />
                   );
@@ -263,13 +268,13 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
               <defs>
                 <marker
                   id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="7"
-                  refX="9"
-                  refY="3.5"
+                  markerWidth="12"
+                  markerHeight="8"
+                  refX="10"
+                  refY="4"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#CBD5E1" />
+                  <polygon points="0 0, 12 4, 0 8" fill="#CBD5E1" />
                 </marker>
               </defs>
             </svg>
@@ -314,10 +319,15 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
                     <span className="text-xs font-bold">{node.mastery}%</span>
                   </div>
                   
-                  {/* ノード名 */}
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 text-xs font-medium text-gray-700 bg-white px-3 py-1 rounded-full shadow-lg whitespace-nowrap border">
-                    {node.name}
-                  </div>
+                                     {/* ノード名 */}
+                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-3 text-xs font-medium text-gray-700 bg-white px-3 py-1 rounded-full shadow-lg whitespace-nowrap border">
+                     {node.name}
+                   </div>
+                   
+                   {/* レベル表示 */}
+                   <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                     Level {data.find(n => n.id === node.id)?.prerequisites.length || 0}
+                   </div>
 
                   {/* 優先度インジケーター */}
                   <div 
