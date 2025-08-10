@@ -333,6 +333,61 @@ def create_tables_only():
     except Exception as e:
         return {"error": f"Failed to create tables: {str(e)}"}
 
+@app.post("/recreate-tables")
+def recreate_tables():
+    """テーブルを削除して再作成するエンドポイント"""
+    try:
+        print("Recreating tables...")
+        from sqlalchemy import text
+        
+        # Drop existing tables
+        db = SessionLocal()
+        try:
+            # Drop tables in reverse order of dependencies
+            tables_to_drop = [
+                'test_result_details',
+                'test_results', 
+                'mastery',
+                'attempts',
+                'questions',
+                'users'
+            ]
+            
+            for table in tables_to_drop:
+                try:
+                    db.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+                    print(f"Dropped table: {table}")
+                except Exception as e:
+                    print(f"Error dropping {table}: {e}")
+            
+            db.commit()
+            db.close()
+            
+        except Exception as e:
+            db.close()
+            return {"error": f"Failed to drop tables: {str(e)}"}
+        
+        # Create tables with new schema
+        Base.metadata.create_all(bind=engine)
+        
+        # Wait and verify
+        import time
+        time.sleep(3)
+        
+        # Verify tables were created
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1 FROM test_results LIMIT 1"))
+            db.commit()
+            db.close()
+            return {"message": "Tables recreated successfully"}
+        except Exception as e:
+            db.close()
+            return {"error": f"Tables recreated but verification failed: {str(e)}"}
+            
+    except Exception as e:
+        return {"error": f"Failed to recreate tables: {str(e)}"}
+
 @app.get("/test-connection")
 def test_connection():
     """基本的な接続テスト"""
