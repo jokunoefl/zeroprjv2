@@ -298,6 +298,13 @@ def check_tables(db: Session = Depends(get_db)):
     except Exception:
         tables["test_result_details"] = "missing"
     
+    try:
+        # Check users table
+        db.execute(text("SELECT 1 FROM users LIMIT 1"))
+        tables["users"] = "exists"
+    except Exception:
+        tables["users"] = "missing"
+    
     return {"tables": tables}
 
 @app.post("/create-tables-only")
