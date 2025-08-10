@@ -269,6 +269,46 @@ def test_connection():
         "database_type": "postgresql" if "postgres" in database_url.lower() else "sqlite" if "sqlite" in database_url.lower() else "unknown"
     }
 
+@app.post("/debug-create-tables")
+def debug_create_tables():
+    """デバッグ用テーブル作成エンドポイント"""
+    try:
+        print("Debug: Starting table creation...")
+        
+        # Get database URL for debugging
+        import os
+        database_url = os.getenv("DATABASE_URL", "Not set")
+        print(f"Debug: DATABASE_URL = {database_url}")
+        
+        # Try to create tables
+        print("Debug: Calling Base.metadata.create_all...")
+        Base.metadata.create_all(bind=engine)
+        print("Debug: Base.metadata.create_all completed")
+        
+        # List all tables
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+            tables = [row[0] for row in result.fetchall()]
+            db.commit()
+            print(f"Debug: Found tables: {tables}")
+            return {
+                "message": "Tables created successfully",
+                "tables_found": tables,
+                "database_url": database_url.replace("postgresql://", "postgresql://***") if "postgresql://" in database_url else database_url
+            }
+        except Exception as e:
+            db.rollback()
+            print(f"Debug: Error listing tables: {e}")
+            return {"error": f"Error listing tables: {str(e)}"}
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"Debug: Error creating tables: {e}")
+        return {"error": f"Failed to create tables: {str(e)}"}
+
 @app.post("/questions/{question_id}/answer")
 def grade_answer(question_id: int, answer_in: AnswerIn, db: Session = Depends(get_db)):
     question = db.query(Question).filter(Question.id == question_id).first()
