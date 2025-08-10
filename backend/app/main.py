@@ -120,48 +120,26 @@ def init_database(db: Session = Depends(get_db)):
     try:
         print("Starting manual database initialization...")
         
-        # First, try to create tables
-        try:
-            Base.metadata.create_all(bind=engine)
-            print("Tables created successfully")
-        except Exception as e:
-            print(f"Error creating tables: {e}")
-            return {"error": f"Failed to create tables: {str(e)}"}
+        # Import the migration script
+        import subprocess
+        import sys
         
-        # Wait a moment for tables to be created
-        import time
-        time.sleep(2)
+        # Run the migration script
+        result = subprocess.run([
+            sys.executable, "migrate.py"
+        ], capture_output=True, text=True, cwd="backend")
         
-        # Verify tables exist before seeding
-        try:
-            db.execute("SELECT 1 FROM questions LIMIT 1")
-            db.commit()
-            print("Questions table verified")
-        except Exception as e:
-            print(f"Questions table verification failed: {e}")
-            return {"error": f"Questions table not accessible: {str(e)}"}
-        
-        # Now seed the database
-        try:
-            seed_basic(db)
-            print("Basic seeding completed")
-            seed_math_topics(db)
-            print("Math topics seeded")
-            seed_science_topics(db)
-            print("Science topics seeded")
-            seed_social_topics(db)
-            print("Social topics seeded")
-            seed_math_dependencies(db)
-            print("Math dependencies seeded")
-            seed_science_dependencies(db)
-            print("Science dependencies seeded")
-            seed_social_dependencies(db)
-            print("Social dependencies seeded")
-            
-            return {"message": "Database initialized successfully"}
-        except Exception as e:
-            print(f"Seeding error: {e}")
-            return {"error": f"Seeding failed: {str(e)}"}
+        if result.returncode == 0:
+            return {
+                "message": "Database initialized successfully",
+                "output": result.stdout
+            }
+        else:
+            return {
+                "error": "Database initialization failed",
+                "output": result.stdout,
+                "error_output": result.stderr
+            }
             
     except Exception as e:
         print(f"General initialization error: {e}")
