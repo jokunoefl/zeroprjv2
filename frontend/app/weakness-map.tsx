@@ -1,449 +1,273 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
-import { motion } from "framer-motion";
-import { 
-  ArrowRight, 
-  Target, 
-  Brain, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  Zap,
-  TrendingUp
-} from "lucide-react";
+import React, { useMemo, useState } from "react";
 
-// データ型定義
-interface LearningNode {
-  id: string;
-  name: string;
-  mastery: number; // 0-100
-  questionCount: number; // 最近の出題量
-  prerequisites: string[]; // 前提単元のID
-  dependencies: string[]; // 後続単元のID
-  mistakeTypes: {
-    calculation: number; // 計算ミス率
-    comprehension: number; // 読解ミス率
-    logic: number; // 条件整理ミス率
-  };
-  recentQuestions: Array<{
-    id: string;
-    text: string;
-    isCorrect: boolean;
-    timeSpent: number;
-  }>;
-  difficulty: 'easy' | 'medium' | 'hard';
-  estimatedTime: number; // 分単位
-  priority: 'high' | 'medium' | 'low';
-  subject?: string;
-  domain?: string;
-}
-
-interface WeaknessMapProps {
-  data: LearningNode[];
-  onNodeClick: (node: LearningNode) => void;
-  onStartPractice: (nodeId: string, type: 'current' | 'prerequisite' | 'quick') => void;
-  subject?: string;
-}
-
-// 色の定義
-const MASTERY_COLORS = {
-  low: '#E53935',    // 赤 <60
-  medium: '#FB8C00', // 橙 60-75
-  high: '#FDD835',   // 黄 75-85
-  excellent: '#43A047' // 緑 85+
-};
-
-// マスターレベルに基づく色を取得
-function getMasteryColor(mastery: number): string {
-  if (mastery < 60) return MASTERY_COLORS.low;
-  if (mastery < 75) return MASTERY_COLORS.medium;
-  if (mastery < 85) return MASTERY_COLORS.high;
-  return MASTERY_COLORS.excellent;
-}
-
-// ノードサイズを出題量に基づいて計算
-function getNodeSize(questions: number): number {
-  return Math.max(60, Math.min(100, 60 + questions * 4));
-}
-
-// 依存マップのメインコンポーネント
-export function WeaknessMap({ data, onNodeClick, onStartPractice, subject = "math" }: WeaknessMapProps) {
-  const [selectedNode, setSelectedNode] = useState<LearningNode | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [dbData, setDbData] = useState<LearningNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // データベースから依存関係データを取得
-  useEffect(() => {
-    const fetchDependencies = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || ''}/dependencies/${subject}/flow`);
-        if (response.ok) {
-          const result = await response.json();
-          const topics = result.topics || [];
-          
-                     // データベースのデータをLearningNode形式に変換
-           const convertedData: LearningNode[] = topics.map((topic: { id: number; name: string; prerequisites: string[]; dependencies: string[]; subject?: string; domain?: string }) => ({
-            id: topic.id.toString(),
-            name: topic.name,
-            mastery: Math.floor(Math.random() * 100), // 仮のデータ
-            questionCount: Math.floor(Math.random() * 15) + 5,
-            prerequisites: topic.prerequisites || [],
-            dependencies: topic.dependencies || [],
-            mistakeTypes: {
-              calculation: Math.floor(Math.random() * 80),
-              comprehension: Math.floor(Math.random() * 60),
-              logic: Math.floor(Math.random() * 70)
-            },
-            recentQuestions: [
-              {
-                id: "1",
-                text: `${topic.name}に関する問題1`,
-                isCorrect: Math.random() > 0.5,
-                timeSpent: Math.floor(Math.random() * 60) + 30
-              },
-              {
-                id: "2",
-                text: `${topic.name}に関する問題2`,
-                isCorrect: Math.random() > 0.5,
-                timeSpent: Math.floor(Math.random() * 60) + 30
-              },
-              {
-                id: "3",
-                text: `${topic.name}に関する問題3`,
-                isCorrect: Math.random() > 0.5,
-                timeSpent: Math.floor(Math.random() * 60) + 30
-              }
-            ],
-            difficulty: Math.random() > 0.7 ? 'hard' : Math.random() > 0.4 ? 'medium' : 'easy',
-            estimatedTime: Math.floor(Math.random() * 20) + 10,
-            priority: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low',
-            subject: topic.subject,
-            domain: topic.domain
-          }));
-          
-          setDbData(convertedData);
-        }
-      } catch (error) {
-        console.error('Failed to fetch dependencies:', error);
-        // エラーの場合はサンプルデータを使用
-        setDbData(sampleWeaknessData);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDependencies();
-  }, [subject]);
-
-  // 使用するデータを決定（データベースデータがあれば使用、なければサンプルデータ）
-  const displayData = dbData.length > 0 ? dbData : data;
-
-  // ノードの位置を計算（横方向フロー図レイアウト）
-  const nodePositions = useMemo(() => {
-    const positions: Record<string, { x: number; y: number }> = {};
-    const levelMap: Record<string, number> = {};
-    
-    // レベルを計算
-    displayData.forEach(node => {
-      if (node.prerequisites.length === 0) {
-        levelMap[node.id] = 0;
+// ====== 既存：汎用GET API関数・取得ユーティリティ ======
+async function apiGet(path: string){
+  if(!(window as any).API_BASE){
+    const m = path.match(/\/questions\/(\d+)/);
+    if(m){
+      const id = Number(m[1]);
+      if (id % 2) {
+        // 算数：割合
+        return {
+          id,
+          subject: "算数",
+          topic: "割合（取得）",
+          text: `定価2000円の商品を20%引きで販売したときの販売価格は？（ID:${id}）`,
+          hint: "販売価格 = 定価 × 0.8",
+          correct: "1600",
+          unit: "円"
+        };
       } else {
-        const maxPrereqLevel = Math.max(...node.prerequisites.map(p => {
-          const prereqNode = displayData.find(n => n.name === p || n.id === p);
-          return prereqNode ? (levelMap[prereqNode.id] || 0) : 0;
-        }));
-        levelMap[node.id] = maxPrereqLevel + 1;
+        // 国語：漢字
+        return {
+          id,
+          subject: "国語",
+          topic: "漢字の読み書き",
+          text: `次の漢字の読みをひらがなで書きなさい：\n『情報』（ID:${id}）`,
+          hint: "コンピュータで扱う○○",
+          correct: "じょうほう",
+          unit: ""
+        };
       }
-    });
-
-    // 各レベル内での位置を計算
-    const levelNodes: Record<number, string[]> = {};
-    displayData.forEach(node => {
-      const level = levelMap[node.id];
-      if (!levelNodes[level]) levelNodes[level] = [];
-      levelNodes[level].push(node.id);
-    });
-
-    // 横方向フロー図として配置
-    Object.entries(levelNodes).forEach(([level, nodeIds]) => {
-      const x = parseInt(level) * 300 + 150; // 横方向の間隔
-      const startY = 100;
-      
-      nodeIds.forEach((nodeId, index) => {
-        const y = startY + index * 200;
-        positions[nodeId] = { x, y };
-      });
-    });
-
-    return positions;
-  }, [displayData]);
-
-  const handleNodeClick = (node: LearningNode) => {
-    setSelectedNode(node);
-    onNodeClick(node);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex h-[600px] bg-gray-50 rounded-xl overflow-hidden items-center justify-center">
-        <div className="text-center">
-          <Brain className="w-12 h-12 mx-auto mb-4 text-gray-400 animate-pulse" />
-          <p className="text-gray-600">依存関係データを読み込み中...</p>
-        </div>
-      </div>
-    );
+    }
+    return { ok: true } as any;
   }
+  const API_BASE = (window as any).API_BASE;
+  const AUTH_TOKEN = (window as any).AUTH_TOKEN;
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'GET',
+    headers: {
+      ...(AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : { 'Authorization': 'Bearer demo-jwt' })
+    }
+  });
+  return await res.json();
+}
+
+async function fetchQuestionById(questionId: number){
+  return apiGet(`/questions/${questionId}`);
+}
+
+// ====== Weakness Map（依存マップ + 詳細ペイン） ======
+type WeakNode = { id: string; name: string; mastery: number; attempts: number; recent_decay?: number; };
+type WeakEdge = { from: string; to: string };
+
+const weakNodesSample: WeakNode[] = [
+  { id: "n1", name: "整数・小数・分数", mastery: 82, attempts: 40 },
+  { id: "n2", name: "四則混合/通分・約分", mastery: 76, attempts: 28 },
+  { id: "n3", name: "割合の定義・百分率", mastery: 63, attempts: 22 },
+  { id: "n4", name: "損益・連続増減", mastery: 58, attempts: 18 },
+  { id: "n5", name: "比（内分・連比）", mastery: 69, attempts: 21 },
+  { id: "n6", name: "速さの基本", mastery: 71, attempts: 26 },
+  { id: "n7", name: "旅人・通過・追いつき", mastery: 54, attempts: 19 },
+  { id: "n8", name: "平面図形の性質", mastery: 74, attempts: 25 },
+  { id: "n9", name: "相似・面積比", mastery: 65, attempts: 17 },
+];
+
+const weakEdgesSample: WeakEdge[] = [
+  { from: "n1", to: "n2" },
+  { from: "n2", to: "n3" },
+  { from: "n3", to: "n4" },
+  { from: "n3", to: "n5" },
+  { from: "n5", to: "n6" },
+  { from: "n6", to: "n7" },
+  { from: "n2", to: "n8" },
+  { from: "n8", to: "n9" },
+  { from: "n5", to: "n9" }
+];
+
+function masteryColor(m: number){
+  if(m < 60) return "bg-red-100 text-red-700 border-red-300";
+  if(m < 75) return "bg-orange-100 text-orange-700 border-orange-300";
+  if(m < 85) return "bg-yellow-100 text-yellow-800 border-yellow-300";
+  return "bg-green-100 text-green-700 border-green-300";
+}
+
+function layerize(nodes: WeakNode[], edges: WeakEdge[]): WeakNode[][]{
+  const id2node = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const indeg: Record<string, number> = Object.fromEntries(nodes.map(n=>[n.id,0]));
+  edges.forEach(e=>{ indeg[e.to] = (indeg[e.to]||0)+1; });
+  const layers: WeakNode[][] = [];
+  const used = new Set<string>();
+  let frontier = nodes.filter(n=> (indeg[n.id]||0)===0);
+  if(frontier.length===0) frontier = [nodes[0]];
+  while(frontier.length){
+    layers.push(frontier);
+    frontier.forEach(n=>used.add(n.id));
+    const nextIds = new Set<string>();
+    edges.forEach(e=>{ if(used.has(e.from) && !used.has(e.to)) nextIds.add(e.to); });
+    frontier = Array.from(nextIds).map(id=>id2node[id]).filter(Boolean);
+    if(frontier.length===0){
+      const rest = nodes.filter(n=>!used.has(n.id));
+      if(rest.length) frontier = [rest[0]]; else break;
+    }
+  }
+  return layers;
+}
+
+function WeaknessMap({ nodes, edges, onSelect }:{ nodes: WeakNode[]; edges: WeakEdge[]; onSelect: (n: WeakNode)=>void }){
+  const layers = useMemo(()=>layerize(nodes, edges), [nodes, edges]);
+  const positions: Record<string, {x:number;y:number}> = {};
+  const colW = 260; const rowH = 84; const x0 = 16; const y0 = 16;
+  layers.forEach((col, ci)=>{
+    col.forEach((n, ri)=>{ positions[n.id] = { x: x0 + ci*colW, y: y0 + ri*rowH }; });
+  });
+  const width = Math.max(640, x0 + layers.length*colW + 120);
+  const height = Math.max(320, y0 + Math.max(...layers.map(c=>c.length))*rowH + 40);
 
   return (
-    <div className="flex h-[600px] bg-gray-50 rounded-xl overflow-hidden">
-      {/* 左側: 依存マップ */}
-      <div className="flex-1 relative p-4 overflow-auto">
-        <h3 className="text-lg font-semibold mb-4">学習依存マップ - {subject}</h3>
-        
-        {/* 接続線を描画 */}
-        <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '1200px', minHeight: '600px' }}>
-          {displayData.map(node => 
-            node.prerequisites.map(prereqName => {
-              const prereqNode = displayData.find(n => n.name === prereqName || n.id === prereqName);
-              if (!prereqNode) return null;
-              
-              const start = nodePositions[prereqNode.id];
-              const end = nodePositions[node.id];
-              if (!start || !end) return null;
-              
-              const isHovered = hoveredNode === node.id || hoveredNode === prereqNode.id;
-              
-              return (
-                <line
-                  key={`${prereqNode.id}-${node.id}`}
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  stroke={isHovered ? "#3B82F6" : "#CBD5E1"}
-                  strokeWidth={isHovered ? 3 : 2}
-                  markerEnd="url(#arrowhead)"
-                />
-              );
-            })
-          )}
-          <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#CBD5E1" />
-            </marker>
-          </defs>
+    <div className="w-full overflow-x-auto">
+      <div className="relative" style={{ width, height }}>
+        <svg className="absolute inset-0 w-full h-full">
+          {edges.map((e,i)=>{
+            const a = positions[e.from];
+            const b = positions[e.to];
+            if(!a||!b) return null;
+            const x1=a.x+170, y1=a.y+28, x2=b.x+10, y2=b.y+28;
+            return (
+              <g key={i}>
+                <defs>
+                  <marker id={`arrow-${i}`} markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L6,3 z" fill="#94a3b8" />
+                  </marker>
+                </defs>
+                <path d={`M ${x1} ${y1} C ${(x1+x2)/2} ${y1}, ${(x1+x2)/2} ${y2}, ${x2} ${y2}`} stroke="#94a3b8" strokeWidth="1.5" fill="none" markerEnd={`url(#arrow-${i})`} />
+              </g>
+            );
+          })}
         </svg>
-
-        {/* ノードを描画 */}
-        {displayData.map(node => {
-          const position = nodePositions[node.id];
-          if (!position) return null;
-
-          const size = getNodeSize(node.questionCount);
-          const color = getMasteryColor(node.mastery);
-          const isSelected = selectedNode?.id === node.id;
-          const isHovered = hoveredNode === node.id;
-
+        {nodes.map(n=>{
+          const p = positions[n.id];
+          if(!p) return null;
           return (
-            <motion.div
-              key={node.id}
-              className="absolute cursor-pointer"
-              style={{
-                left: position.x - size / 2,
-                top: position.y - size / 2,
-              }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleNodeClick(node)}
-              onMouseEnter={() => setHoveredNode(node.id)}
-              onMouseLeave={() => setHoveredNode(null)}
-            >
-              <div
-                className="rounded-full flex items-center justify-center text-white font-medium text-sm relative"
-                style={{
-                  width: size,
-                  height: size,
-                  backgroundColor: color,
-                  border: isSelected ? '3px solid #3B82F6' : '2px solid white',
-                  boxShadow: isHovered ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.2)',
-                }}
-              >
-                {node.mastery < 60 && <AlertTriangle className="w-4 h-4" />}
-                {node.mastery >= 85 && <CheckCircle className="w-4 h-4" />}
-                {node.mastery >= 60 && node.mastery < 85 && <TrendingUp className="w-4 h-4" />}
-                <span className="text-xs font-bold">{node.mastery}%</span>
-              </div>
-              
-              {/* ノード名 */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 text-xs font-medium text-gray-700 bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
-                {node.name}
-              </div>
-            </motion.div>
+            <button key={n.id} className={`absolute rounded-xl border px-3 py-2 text-left shadow-sm hover:shadow ${masteryColor(n.mastery)}`} style={{ left: p.x, top: p.y, width: 170 }} onClick={()=>onSelect(n)}>
+              <div className="text-sm font-medium truncate">{n.name}</div>
+              <div className="text-xs opacity-80">定着 {n.mastery}% ・ 試行 {n.attempts}</div>
+            </button>
           );
         })}
       </div>
-
-      {/* 右側: 詳細パネル */}
-      <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
-        {selectedNode ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-lg font-semibold">{selectedNode.name}</h4>
-              <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium">{selectedNode.mastery}%</span>
-              </div>
-            </div>
-
-            {/* 定着度バー */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>定着度</span>
-                <span>{selectedNode.mastery}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${selectedNode.mastery}%`,
-                    backgroundColor: getMasteryColor(selectedNode.mastery)
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* 基本情報 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-xl font-bold text-blue-600">{selectedNode.questionCount}</div>
-                <div className="text-xs text-gray-600">最近の出題</div>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-xl font-bold text-green-600">{selectedNode.estimatedTime}分</div>
-                <div className="text-xs text-gray-600">推定時間</div>
-              </div>
-            </div>
-
-            {/* ミス傾向 */}
-            <div className="space-y-2">
-              <h5 className="font-medium text-sm">ミス傾向</h5>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span>計算ミス</span>
-                  <span>{selectedNode.mistakeTypes.calculation}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1">
-                  <div
-                    className="h-1 bg-red-500 rounded-full"
-                    style={{ width: `${selectedNode.mistakeTypes.calculation}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span>読解ミス</span>
-                  <span>{selectedNode.mistakeTypes.comprehension}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1">
-                  <div
-                    className="h-1 bg-orange-500 rounded-full"
-                    style={{ width: `${selectedNode.mistakeTypes.comprehension}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span>条件整理</span>
-                  <span>{selectedNode.mistakeTypes.logic}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1">
-                  <div
-                    className="h-1 bg-blue-500 rounded-full"
-                    style={{ width: `${selectedNode.mistakeTypes.logic}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 直近の問題 */}
-            <div className="space-y-2">
-              <h5 className="font-medium text-sm">直近の問題</h5>
-              <div className="space-y-2">
-                {selectedNode.recentQuestions.slice(0, 3).map((question, index) => (
-                  <div
-                    key={question.id}
-                    className="p-2 bg-gray-50 rounded text-xs cursor-pointer hover:bg-gray-100"
-                    onClick={() => onStartPractice(selectedNode.id, 'quick')}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium">Q{index + 1}</span>
-                      <div className="flex items-center gap-1">
-                        {question.isCorrect ? (
-                          <CheckCircle className="w-3 h-3 text-green-500" />
-                        ) : (
-                          <AlertTriangle className="w-3 h-3 text-red-500" />
-                        )}
-                        <Clock className="w-3 h-3 text-gray-400" />
-                        <span>{question.timeSpent}s</span>
-                      </div>
-                    </div>
-                    <div className="text-gray-600 truncate">{question.text}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* アクションボタン */}
-            <div className="space-y-2 pt-4 border-t">
-              <button
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                onClick={() => onStartPractice(selectedNode.id, 'current')}
-              >
-                <Target className="w-4 h-4" />
-                この単元からやる
-              </button>
-              
-              {selectedNode.prerequisites.length > 0 && (
-                <button
-                  className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
-                  onClick={() => onStartPractice(selectedNode.id, 'prerequisite')}
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  前提単元に戻る
-                </button>
-              )}
-              
-              <button
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                onClick={() => onStartPractice(selectedNode.id, 'quick')}
-              >
-                <Zap className="w-4 h-4" />
-                3問だけ解く
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-gray-500 py-8">
-            <Brain className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>ノードをクリックして詳細を確認</p>
-          </div>
-        )}
+      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"/> <span>{"<"}60%</span></span>
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-100 border border-orange-300"/> <span>60–75%</span></span>
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"/> <span>75–85%</span></span>
+        <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300"/> <span>85%+</span></span>
       </div>
     </div>
   );
 }
 
+function WeaknessDetail({ node, onStart }:{ node: WeakNode | null; onStart: (topic?: string)=>void }){
+  if(!node){
+    return (<div className="text-sm text-muted-foreground p-3">左のマップから単元を選ぶと、ミス傾向と即時練習の導線が表示されます。</div>);
+  }
+  const chips = node.name.includes("割合") ? ["式設定", "百分率⇄小数", "もとにする量"] : node.name.includes("速さ") ? ["単位換算", "比の整え", "図の読み取り"] : ["計算ミス", "条件整理", "単位"];
+  const topic = node.name.includes("割合") ? "割合" : node.name.includes("速さ") ? "速さ" : node.name.includes("相似") ? "相似" : "計算";
+  return (
+    <div className="space-y-3">
+      <div className="text-sm"><span className="font-semibold">選択：</span>{node.name}</div>
+      <div className="flex flex-wrap gap-2">
+        {chips.map((c,i)=> <span key={i} className="px-2 py-1 rounded-xl bg-gray-100 text-gray-700 text-xs">ミス：{c}</span>)}
+      </div>
+      <div className="text-xs text-muted-foreground">代表の1問（モック）</div>
+      <div className="rounded-2xl border p-3 space-y-2">
+        <div className="text-sm">この単元の典型問題を30秒で確認しましょう。</div>
+        <div className="flex gap-2">
+          <button className="px-3 py-1.5 rounded-xl bg-black text-white" onClick={()=>onStart(topic)}>3問だけ解く</button>
+          <button className="px-3 py-1.5 rounded-xl bg-gray-100">解説を読む</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== 画面統合（モック） ======
+export default function App(){
+  const [selected, setSelected] = useState<WeakNode|null>(null);
+  const [lastPack, setLastPack] = useState<string|undefined>(undefined);
+
+  const startQuickPack = async (topic?: string)=>{
+    setLastPack(topic||"計算");
+    // 実APIなら POST /practice/quickpack を呼ぶ
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="text-lg font-semibold">弱点マップ（算数）</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-2xl border p-3 bg-white">
+          <WeaknessMap nodes={weakNodesSample} edges={weakEdgesSample} onSelect={setSelected} />
+        </div>
+        <div className="rounded-2xl border p-3 bg-white">
+          <WeaknessDetail node={selected} onStart={startQuickPack} />
+          {lastPack && (
+            <div className="mt-3 text-xs text-muted-foreground">開始しました：{lastPack} の3問クイックドリル（モック）</div>
+          )}
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground">※ 色：赤{'<'}60% / 橙60–75% / 黄75–85% / 緑85%+。ノードをクリックすると右に詳細が出ます。</div>
+    </div>
+  );
+}
+
+// 既存のコンポーネントとの互換性のため、元のインターフェースも保持
+export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subject = "math" }: any) {
+  // 既存のインターフェースを新しい実装に変換
+  const nodes: WeakNode[] = data.map((item: any) => ({
+    id: item.id,
+    name: item.name,
+    mastery: item.mastery || Math.floor(Math.random() * 100),
+    attempts: item.questionCount || Math.floor(Math.random() * 30) + 10
+  }));
+
+  const edges: WeakEdge[] = [];
+  data.forEach((item: any) => {
+    if (item.prerequisites) {
+      item.prerequisites.forEach((prereq: string) => {
+        edges.push({ from: prereq, to: item.id });
+      });
+    }
+  });
+
+  const [selected, setSelected] = useState<WeakNode|null>(null);
+  const [lastPack, setLastPack] = useState<string|undefined>(undefined);
+
+  const startQuickPack = async (topic?: string)=>{
+    setLastPack(topic||"計算");
+    if (onStartPractice && selected) {
+      onStartPractice(selected.id, 'quick');
+    }
+  };
+
+  const handleNodeSelect = (node: WeakNode) => {
+    setSelected(node);
+    if (onNodeClick) {
+      const originalNode = data.find((item: any) => item.id === node.id);
+      onNodeClick(originalNode || node);
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="text-lg font-semibold">弱点マップ（{subject}）</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-2xl border p-3 bg-white">
+          <WeaknessMap nodes={nodes} edges={edges} onSelect={handleNodeSelect} />
+        </div>
+        <div className="rounded-2xl border p-3 bg-white">
+          <WeaknessDetail node={selected} onStart={startQuickPack} />
+          {lastPack && (
+            <div className="mt-3 text-xs text-muted-foreground">開始しました：{lastPack} の3問クイックドリル（モック）</div>
+          )}
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground">※ 色：赤{'<'}60% / 橙60–75% / 黄75–85% / 緑85%+。ノードをクリックすると右に詳細が出ます。</div>
+    </div>
+  );
+}
+
 // サンプルデータ（フォールバック用）
-export const sampleWeaknessData: LearningNode[] = [
+export const sampleWeaknessData = [
   {
     id: "fractions",
     name: "分数の計算",
