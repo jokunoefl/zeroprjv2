@@ -311,6 +311,10 @@ async def upload_test_result(
         if file_ext not in allowed_extensions:
             raise HTTPException(status_code=400, detail="サポートされていないファイル形式です")
         
+        # ファイルサイズの確認（10MB制限）
+        if file.size and file.size > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="ファイルサイズが大きすぎます（10MB以下にしてください）")
+        
         # 一時ファイルに保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
             shutil.copyfileobj(file.file, temp_file)
@@ -321,63 +325,85 @@ async def upload_test_result(
             analyzer = TestResultAnalyzer()
             
             # ファイルからテキストを抽出
-            text = analyzer.extract_text_from_file(temp_file_path)
+            try:
+                text = analyzer.extract_text_from_file(temp_file_path)
+                if not text.strip():
+                    raise HTTPException(status_code=400, detail="ファイルからテキストを抽出できませんでした")
+            except Exception as extract_error:
+                raise HTTPException(status_code=400, detail=f"ファイルの読み込みエラー: {str(extract_error)}")
             
             # テスト結果を解析
-            parsed_result = analyzer.parse_test_result(text)
+            try:
+                parsed_result = analyzer.parse_test_result(text)
+            except Exception as parse_error:
+                raise HTTPException(status_code=400, detail=f"テスト結果の解析エラー: {str(parse_error)}")
             
             # AI分析を実行
-            analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
+            try:
+                analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
+            except Exception as analysis_error:
+                raise HTTPException(status_code=500, detail=f"AI分析エラー: {str(analysis_error)}")
             
             # データベースに保存
-            test_result = TestResult(
-                user_id=user_id,
-                subject=subject or parsed_result['subject'],
-                test_name=test_name or parsed_result['test_name'],
-                total_score=parsed_result['total_score'] or 0,
-                max_score=parsed_result['max_score'] or 100,
-                score_percentage=parsed_result['score_percentage'],
-                file_path=file.filename,
-                analysis_status="completed"
-            )
-            
-            db.add(test_result)
-            db.flush()  # IDを取得するためにflush
-            
-            # 単元別詳細を保存
-            for topic_data in analysis_result['topics']:
-                detail = TestResultDetail(
-                    test_result_id=test_result.id,
-                    topic=topic_data['topic'],
-                    correct_count=topic_data['correct_count'],
-                    total_count=topic_data['total_count'],
-                    score_percentage=topic_data['score_percentage'],
-                    weakness_analysis=topic_data.get('weakness_analysis'),
-                    improvement_advice=topic_data.get('improvement_advice')
+            try:
+                test_result = TestResult(
+                    user_id=user_id,
+                    subject=subject or parsed_result['subject'],
+                    test_name=test_name or parsed_result['test_name'],
+                    total_score=parsed_result['total_score'] or 0,
+                    max_score=parsed_result['max_score'] or 100,
+                    score_percentage=parsed_result['score_percentage'],
+                    file_path=file.filename,
+                    analysis_status="completed"
                 )
-                db.add(detail)
-            
-            db.commit()
-            
-            return {
-                "message": "テスト結果のアップロードと分析が完了しました",
-                "test_result_id": test_result.id,
-                "subject": test_result.subject,
-                "test_name": test_result.test_name,
-                "total_score": test_result.total_score,
-                "max_score": test_result.max_score,
-                "score_percentage": test_result.score_percentage,
-                "analysis_status": test_result.analysis_status,
-                "overall_analysis": analysis_result['overall_analysis'],
-                "topics": analysis_result['topics']
-            }
+                
+                db.add(test_result)
+                db.flush()  # IDを取得するためにflush
+                
+                # 単元別詳細を保存
+                for topic_data in analysis_result['topics']:
+                    detail = TestResultDetail(
+                        test_result_id=test_result.id,
+                        topic=topic_data['topic'],
+                        correct_count=topic_data['correct_count'],
+                        total_count=topic_data['total_count'],
+                        score_percentage=topic_data['score_percentage'],
+                        weakness_analysis=topic_data.get('weakness_analysis'),
+                        improvement_advice=topic_data.get('improvement_advice')
+                    )
+                    db.add(detail)
+                
+                db.commit()
+                
+                return {
+                    "message": "テスト結果のアップロードと分析が完了しました",
+                    "test_result_id": test_result.id,
+                    "subject": test_result.subject,
+                    "test_name": test_result.test_name,
+                    "total_score": test_result.total_score,
+                    "max_score": test_result.max_score,
+                    "score_percentage": test_result.score_percentage,
+                    "analysis_status": test_result.analysis_status,
+                    "overall_analysis": analysis_result['overall_analysis'],
+                    "topics": analysis_result['topics']
+                }
+                
+            except Exception as db_error:
+                db.rollback()
+                raise HTTPException(status_code=500, detail=f"データベース保存エラー: {str(db_error)}")
             
         finally:
             # 一時ファイルを削除
-            os.unlink(temp_file_path)
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass  # 削除に失敗しても無視
             
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"アップロード処理エラー: {str(e)}")
+        print(f"Unexpected error in upload_test_result: {e}")
+        raise HTTPException(status_code=500, detail=f"予期しないエラーが発生しました: {str(e)}")
 
 @app.get("/test-results/{user_id}")
 def get_test_results(user_id: int, db: Session = Depends(get_db)):

@@ -66,11 +66,22 @@ export default function TestUpload() {
         // 履歴を更新
         loadTestHistory();
       } else {
-        const error = await response.json();
-        alert(`アップロードエラー: ${error.detail}`);
+        let errorMessage = 'アップロードに失敗しました';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (parseError) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        alert(`アップロードエラー: ${errorMessage}`);
       }
     } catch (error) {
-      alert(`アップロードエラー: ${error}`);
+      console.error('Upload error:', error);
+      let errorMessage = 'ネットワークエラーが発生しました';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      alert(`アップロードエラー: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }
