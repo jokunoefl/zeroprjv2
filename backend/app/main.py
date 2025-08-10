@@ -232,6 +232,20 @@ def check_tables(db: Session = Depends(get_db)):
     except Exception:
         tables["attempts"] = "missing"
     
+    try:
+        # Check test_results table
+        db.execute(text("SELECT 1 FROM test_results LIMIT 1"))
+        tables["test_results"] = "exists"
+    except Exception:
+        tables["test_results"] = "missing"
+    
+    try:
+        # Check test_result_details table
+        db.execute(text("SELECT 1 FROM test_result_details LIMIT 1"))
+        tables["test_result_details"] = "exists"
+    except Exception:
+        tables["test_result_details"] = "missing"
+    
     return {"tables": tables}
 
 @app.post("/create-tables-only")
