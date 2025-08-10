@@ -118,20 +118,53 @@ def health():
 def init_database(db: Session = Depends(get_db)):
     """手動でデータベースを初期化するエンドポイント"""
     try:
-        # Create all tables
-        Base.metadata.create_all(bind=engine)
+        print("Starting manual database initialization...")
         
-        # Seed the database
-        seed_basic(db)
-        seed_math_topics(db)
-        seed_science_topics(db)
-        seed_social_topics(db)
-        seed_math_dependencies(db)
-        seed_science_dependencies(db)
-        seed_social_dependencies(db)
+        # First, try to create tables
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("Tables created successfully")
+        except Exception as e:
+            print(f"Error creating tables: {e}")
+            return {"error": f"Failed to create tables: {str(e)}"}
         
-        return {"message": "Database initialized successfully"}
+        # Wait a moment for tables to be created
+        import time
+        time.sleep(2)
+        
+        # Verify tables exist before seeding
+        try:
+            db.execute("SELECT 1 FROM questions LIMIT 1")
+            db.commit()
+            print("Questions table verified")
+        except Exception as e:
+            print(f"Questions table verification failed: {e}")
+            return {"error": f"Questions table not accessible: {str(e)}"}
+        
+        # Now seed the database
+        try:
+            seed_basic(db)
+            print("Basic seeding completed")
+            seed_math_topics(db)
+            print("Math topics seeded")
+            seed_science_topics(db)
+            print("Science topics seeded")
+            seed_social_topics(db)
+            print("Social topics seeded")
+            seed_math_dependencies(db)
+            print("Math dependencies seeded")
+            seed_science_dependencies(db)
+            print("Science dependencies seeded")
+            seed_social_dependencies(db)
+            print("Social dependencies seeded")
+            
+            return {"message": "Database initialized successfully"}
+        except Exception as e:
+            print(f"Seeding error: {e}")
+            return {"error": f"Seeding failed: {str(e)}"}
+            
     except Exception as e:
+        print(f"General initialization error: {e}")
         return {"error": f"Database initialization failed: {str(e)}"}
 
 @app.get("/check-tables")
@@ -160,6 +193,20 @@ def check_tables(db: Session = Depends(get_db)):
         tables["attempts"] = "missing"
     
     return {"tables": tables}
+
+@app.post("/create-tables-only")
+def create_tables_only():
+    """テーブルのみを作成するエンドポイント"""
+    try:
+        Base.metadata.create_all(bind=engine)
+        return {"message": "Tables created successfully"}
+    except Exception as e:
+        return {"error": f"Failed to create tables: {str(e)}"}
+
+@app.get("/test-connection")
+def test_connection():
+    """基本的な接続テスト"""
+    return {"message": "Connection successful", "timestamp": datetime.now().isoformat()}
 
 @app.post("/questions/{question_id}/answer")
 def grade_answer(question_id: int, answer_in: AnswerIn, db: Session = Depends(get_db)):
