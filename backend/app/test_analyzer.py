@@ -367,26 +367,7 @@ class TestResultAnalyzer:
             return self._generate_dummy_analysis_from_pdf(pdf_file_path)
         
         try:
-            # まずPDFからテキストを抽出して内容を確認
-            try:
-                print(f"PDFテキスト抽出開始: {pdf_file_path}")
-                text_content = self.extract_text_from_pdf(pdf_file_path)
-                
-                # テキストの品質を改善
-                text_content = self._clean_extracted_text(text_content)
-                
-                print(f"PDFから抽出されたテキスト: {text_content[:200]}...")
-                print(f"抽出されたテキストの長さ: {len(text_content)} 文字")
-                
-                # 日本語文字が含まれているかチェック
-                japanese_chars = re.findall(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]', text_content)
-                print(f"日本語文字数: {len(japanese_chars)}")
-                
-            except Exception as e:
-                print(f"PDFテキスト抽出エラー: {e}")
-                text_content = "PDFファイルの内容を読み取れませんでした。"
-            
-            # PDFファイルを直接アップロードして分析
+            # PDFファイルを直接アップロードして分析（テキスト抽出なし）
             try:
                 print(f"PDFファイル直接アップロード開始: {pdf_file_path}")
                 with open(pdf_file_path, 'rb') as pdf_file:
@@ -405,7 +386,7 @@ class TestResultAnalyzer:
                                 "content": [
                                     {
                                         "type": "text",
-                                        "text": self._create_pdf_analysis_prompt_with_content(text_content)
+                                        "text": self._create_pdf_analysis_prompt()
                                     },
                                     {
                                         "type": "file_url",
@@ -424,29 +405,39 @@ class TestResultAnalyzer:
                 print(f"AI分析結果: {analysis_text[:200]}...")
                 
                 # 分析結果を構造化
-                return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
+                return self._parse_pdf_analysis(analysis_text, pdf_file_path, "")
                 
             except Exception as file_upload_error:
                 print(f"PDFファイル直接アップロードエラー: {file_upload_error}")
-                print("テキストベースの分析にフォールバックします。")
+                print("テキスト抽出ベースの分析にフォールバックします。")
                 
-                # フォールバック: テキストベースの分析
-                prompt = self._create_pdf_analysis_prompt_with_content(text_content)
-                
-                response = self.client.chat.completions.create(
-                    model="gpt-5",
-                    messages=[
-                        {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=4000,
-                    temperature=0.7
-                )
-                
-                analysis_text = response.choices[0].message.content
-                
-                # 分析結果を構造化
-                return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
+                # フォールバック: テキスト抽出ベースの分析
+                try:
+                    print(f"PDFテキスト抽出開始: {pdf_file_path}")
+                    text_content = self.extract_text_from_pdf(pdf_file_path)
+                    text_content = self._clean_extracted_text(text_content)
+                    print(f"PDFから抽出されたテキスト: {text_content[:200]}...")
+                    
+                    prompt = self._create_pdf_analysis_prompt_with_content(text_content)
+                    
+                    response = self.client.chat.completions.create(
+                        model="gpt-5",
+                        messages=[
+                            {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=4000,
+                        temperature=0.7
+                    )
+                    
+                    analysis_text = response.choices[0].message.content
+                    
+                    # 分析結果を構造化
+                    return self._parse_pdf_analysis(analysis_text, pdf_file_path, text_content)
+                    
+                except Exception as text_extract_error:
+                    print(f"テキスト抽出エラー: {text_extract_error}")
+                    return self._generate_dummy_analysis_from_pdf(pdf_file_path)
             
         except Exception as e:
             print(f"PDF直接分析エラー: {e}")
@@ -718,8 +709,81 @@ class TestResultAnalyzer:
 """
 
     def _create_pdf_analysis_prompt(self) -> str:
-        """PDF直接分析用のプロンプトを作成（後方互換性のため）"""
-        return self._create_pdf_analysis_prompt_with_content("PDFファイルの内容を読み取れませんでした。")
+        """PDF直接分析用のプロンプトを作成"""
+        return """
+以下のPDFファイルのテスト結果を詳細に分析してください。
+
+## 分析要求
+以下の観点から詳細な分析を行い、具体的で実行可能な改善策を提案してください：
+
+### 1. テスト結果の抽出
+- 科目名
+- テスト名
+- 総合点と満点
+- 単元別の得点状況
+- 正答率
+
+### 2. 総合的な成績評価
+- 現在の学力レベル（基礎・標準・応用・発展）
+- 全体的な強みと弱み
+- 学習の進捗状況
+
+### 3. 単元別詳細分析
+各単元について以下を分析：
+- 理解度の深さ（表面的理解 vs 深い理解）
+- 間違いの傾向（計算ミス、概念理解不足、応用力不足など）
+- 学習の優先順位
+
+### 4. 学習戦略の提案
+- 短期目標（1-2週間）
+- 中期目標（1-2ヶ月）
+- 長期目標（3-6ヶ月）
+- 具体的な学習方法と教材
+- 練習問題の種類と量
+
+### 5. 学習スケジュール
+- 1日の学習時間配分
+- 週間学習計画
+- 復習のタイミング
+
+### 6. モチベーション維持
+- 学習意欲を高める方法
+- 挫折しそうな時の対処法
+- 成功体験の作り方
+
+### 7. 保護者・教師へのアドバイス
+- 家庭でのサポート方法
+- 効果的な声かけ
+- 学習環境の整備
+
+## 回答形式
+以下の構造化された形式で回答してください：
+
+### テスト結果概要
+[科目、テスト名、総合点などの基本情報]
+
+### 総合分析
+[全体的な成績評価と学習状況]
+
+### 単元別分析
+[各単元の詳細分析]
+
+### 改善戦略
+[具体的な学習方法とスケジュール]
+
+### 優先学習項目
+[最も重要な学習項目とその理由]
+
+### 保護者・教師へのアドバイス
+[家庭・学校でのサポート方法]
+
+### 学習スケジュール例
+[具体的な時間配分と計画]
+
+**重要**: PDFファイルの内容を直接参照して分析してください。文字化けや読み取りにくい部分がある場合は、その旨を明記してください。
+
+各項目は具体的で実行可能な内容にしてください。
+"""
 
     def _parse_pdf_analysis(self, analysis_text: str, pdf_file_path: str, text_content: str = "") -> Dict:
         """PDF分析結果を構造化"""
@@ -727,7 +791,7 @@ class TestResultAnalyzer:
         return {
             'overall_analysis': analysis_text,
             'source_file': pdf_file_path,
-            'analysis_method': 'PDF内容分析',
+            'analysis_method': 'PDF直接分析' if not text_content else 'PDF内容分析',
             'extracted_content': text_content[:500] + "..." if len(text_content) > 500 else text_content,
             'topics': [
                 {
@@ -736,7 +800,7 @@ class TestResultAnalyzer:
                     'total_count': 0,
                     'score_percentage': 0.0,
                     'weakness_analysis': analysis_text,
-                    'improvement_advice': 'PDFファイルの内容に基づいて分析された結果です。'
+                    'improvement_advice': 'PDFファイルの直接分析により生成された改善提案'
                 }
             ]
         }
