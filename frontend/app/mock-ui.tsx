@@ -2,8 +2,9 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Brain, CalendarClock, CheckCircle2, Clock3, Database, FileText, Play, School, Settings, Sparkles, Trophy, XCircle, LogIn, User, Upload } from "lucide-react";
+import { BarChart3, Brain, CalendarClock, CheckCircle2, Clock3, Database, FileText, Play, School, Settings, Sparkles, Trophy, XCircle, LogIn, User, Upload, Maximize2 } from "lucide-react";
 import TestUpload from './test-upload';
+import { WeaknessMap, sampleWeaknessData } from './weakness-map';
 
 function cn(...cls: (string | false | undefined)[]) { return cls.filter(Boolean).join(" "); }
 
@@ -412,6 +413,18 @@ function TestUploadCard({ onNavigate }: { onNavigate: () => void }){
 
 function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
   const [showTestUpload, setShowTestUpload] = useState(false);
+  const [showWeaknessMap, setShowWeaknessMap] = useState(false);
+
+  const handleNodeClick = (node: any) => {
+    console.log('Node clicked:', node);
+  };
+
+  const handleStartPractice = (nodeId: string, type: 'current' | 'prerequisite' | 'quick') => {
+    const node = sampleWeaknessData.find(n => n.id === nodeId);
+    if (node) {
+      onStart('算数', node.name);
+    }
+  };
 
   if (showTestUpload) {
     return (
@@ -427,6 +440,39 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
           <h1 className="text-2xl font-bold">テスト結果分析</h1>
         </div>
         <TestUpload />
+      </div>
+    );
+  }
+
+  if (showWeaknessMap) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100">
+              <Brain className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">弱点依存マップ</h2>
+              <p className="text-sm text-gray-600">学習項目の関連性と弱点を可視化</p>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowWeaknessMap(false)}
+            className="rounded-xl"
+          >
+            ← 戻る
+          </Button>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <WeaknessMap 
+            data={sampleWeaknessData}
+            onNodeClick={handleNodeClick}
+            onStartPractice={handleStartPractice}
+          />
+        </div>
       </div>
     );
   }
@@ -458,6 +504,51 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
             </div>
           </CardContent>
         </Card>
+        
+        {/* 依存マップカード */}
+        <Card className="rounded-2xl cursor-pointer hover:shadow-lg transition-all duration-300 border-2 border-blue-100 hover:border-blue-300" onClick={() => setShowWeaknessMap(true)}>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-blue-100">
+                <Brain className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">弱点依存マップ</h3>
+                <p className="text-sm text-gray-600">学習項目の関連性を可視化</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <span>弱点項目</span>
+                <span className="text-gray-500">（要復習）</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                <span>前提知識</span>
+                <span className="text-gray-500">（基礎固め）</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>習得済み</span>
+                <span className="text-gray-500">（応用可能）</span>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                setShowWeaknessMap(true);
+              }}
+              className="w-full rounded-xl bg-blue-600 hover:bg-blue-700"
+            >
+              <Maximize2 className="w-4 h-4 mr-2" />
+              マップを開く
+            </Button>
+          </CardContent>
+        </Card>
+        
         <TestUploadCard onNavigate={() => setShowTestUpload(true)} />
         <RecentActivity />
       </div>
