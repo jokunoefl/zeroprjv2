@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 // ====== 既存：汎用GET API関数・取得ユーティリティ ======
 interface ApiResponse {
@@ -61,34 +61,42 @@ async function apiGet(path: string): Promise<ApiResponse>{
   return await res.json();
 }
 
-
-
 // ====== Weakness Map（依存マップ + 詳細ペイン） ======
 type WeakNode = { id: string; name: string; mastery: number; attempts: number; recent_decay?: number; };
 type WeakEdge = { from: string; to: string };
 
+// データベースから取得する依存関係データの型
+interface DependencyData {
+  id: number;
+  name: string;
+  prerequisites: string[];
+  dependencies: string[];
+  subject: string;
+  domain?: string;
+}
+
+// サンプルデータ（フォールバック用）
 const weakNodesSample: WeakNode[] = [
-  { id: "n1", name: "整数・小数・分数", mastery: 82, attempts: 40 },
-  { id: "n2", name: "四則混合/通分・約分", mastery: 76, attempts: 28 },
-  { id: "n3", name: "割合の定義・百分率", mastery: 63, attempts: 22 },
-  { id: "n4", name: "損益・連続増減", mastery: 58, attempts: 18 },
-  { id: "n5", name: "比（内分・連比）", mastery: 69, attempts: 21 },
-  { id: "n6", name: "速さの基本", mastery: 71, attempts: 26 },
-  { id: "n7", name: "旅人・通過・追いつき", mastery: 54, attempts: 19 },
-  { id: "n8", name: "平面図形の性質", mastery: 74, attempts: 25 },
-  { id: "n9", name: "相似・面積比", mastery: 65, attempts: 17 },
+  { id: "n1", name: "整数の範囲", mastery: 82, attempts: 40 },
+  { id: "n2", name: "小数", mastery: 76, attempts: 28 },
+  { id: "n3", name: "分数", mastery: 63, attempts: 22 },
+  { id: "n4", name: "約分と通分", mastery: 58, attempts: 18 },
+  { id: "n5", name: "分数と小数の混合計算", mastery: 69, attempts: 21 },
+  { id: "n6", name: "四則混合算", mastery: 71, attempts: 26 },
+  { id: "n7", name: "累乗と指数", mastery: 54, attempts: 19 },
+  { id: "n8", name: "正負の数", mastery: 74, attempts: 25 },
+  { id: "n9", name: "整数の性質（倍数・約数）", mastery: 65, attempts: 17 },
 ];
 
 const weakEdgesSample: WeakEdge[] = [
   { from: "n1", to: "n2" },
   { from: "n2", to: "n3" },
   { from: "n3", to: "n4" },
-  { from: "n3", to: "n5" },
+  { from: "n4", to: "n5" },
   { from: "n5", to: "n6" },
   { from: "n6", to: "n7" },
-  { from: "n2", to: "n8" },
+  { from: "n7", to: "n8" },
   { from: "n8", to: "n9" },
-  { from: "n5", to: "n9" }
 ];
 
 function masteryColor(m: number){
@@ -200,18 +208,94 @@ function WeaknessDetail({ node, onStart }:{ node: WeakNode | null; onStart: (top
 export default function App(){
   const [selected, setSelected] = useState<WeakNode|null>(null);
   const [lastPack, setLastPack] = useState<string|undefined>(undefined);
+  const [dependencyData, setDependencyData] = useState<DependencyData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // データベースから依存関係データを取得
+  useEffect(() => {
+    const fetchDependencies = async () => {
+      try {
+        setLoading(true);
+        const windowWithAPI = window as WindowWithAPI;
+        if (windowWithAPI.API_BASE) {
+          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/math/flow`);
+          if (response.ok) {
+            const result = await response.json();
+            setDependencyData(result.topics || []);
+          } else {
+            // APIが利用できない場合はサンプルデータを使用
+            setDependencyData([]);
+          }
+        } else {
+          // ローカル開発環境の場合はサンプルデータを使用
+          setDependencyData([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dependencies:', error);
+        setDependencyData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDependencies();
+  }, []);
+
+  // 依存関係データをWeakNodeとWeakEdgeに変換
+  const { nodes, edges } = useMemo(() => {
+    if (dependencyData.length === 0) {
+      // サンプルデータを使用
+      return { nodes: weakNodesSample, edges: weakEdgesSample };
+    }
+
+    // データベースデータを変換
+    const nodes: WeakNode[] = dependencyData.map((item, index) => ({
+      id: item.id.toString(),
+      name: item.name,
+      mastery: Math.floor(Math.random() * 100), // 仮のデータ（実際はAPIから取得）
+      attempts: Math.floor(Math.random() * 30) + 10
+    }));
+
+    const edges: WeakEdge[] = [];
+    dependencyData.forEach((item) => {
+      if (item.prerequisites) {
+        item.prerequisites.forEach((prereq) => {
+          const prereqItem = dependencyData.find(d => d.name === prereq);
+          if (prereqItem) {
+            edges.push({ from: prereqItem.id.toString(), to: item.id.toString() });
+          }
+        });
+      }
+    });
+
+    return { nodes, edges };
+  }, [dependencyData]);
 
   const startQuickPack = async (topic?: string)=>{
     setLastPack(topic||"計算");
     // 実APIなら POST /practice/quickpack を呼ぶ
   };
 
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="text-lg font-semibold">弱点マップ（算数）</div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">依存関係データを読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-4">
       <div className="text-lg font-semibold">弱点マップ（算数）</div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-2xl border p-3 bg-white">
-          <WeaknessMap nodes={weakNodesSample} edges={weakEdgesSample} onSelect={setSelected} />
+          <WeaknessMap nodes={nodes} edges={edges} onSelect={setSelected} />
         </div>
         <div className="rounded-2xl border p-3 bg-white">
           <WeaknessDetail node={selected} onStart={startQuickPack} />
@@ -240,22 +324,84 @@ interface WeaknessMapComponentProps {
 }
 
 export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subject = "math" }: WeaknessMapComponentProps) {
-  // 既存のインターフェースを新しい実装に変換
-  const nodes: WeakNode[] = data.map((item) => ({
-    id: item.id,
-    name: item.name,
-    mastery: item.mastery || Math.floor(Math.random() * 100),
-    attempts: item.questionCount || Math.floor(Math.random() * 30) + 10
-  }));
+  const [dependencyData, setDependencyData] = useState<DependencyData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const edges: WeakEdge[] = [];
-  data.forEach((item) => {
-    if (item.prerequisites) {
-      item.prerequisites.forEach((prereq: string) => {
-        edges.push({ from: prereq, to: item.id });
+  // データベースから依存関係データを取得
+  useEffect(() => {
+    const fetchDependencies = async () => {
+      try {
+        setLoading(true);
+        const windowWithAPI = window as WindowWithAPI;
+        if (windowWithAPI.API_BASE) {
+          const response = await fetch(`${windowWithAPI.API_BASE}/dependencies/${subject}/flow`);
+          if (response.ok) {
+            const result = await response.json();
+            setDependencyData(result.topics || []);
+          } else {
+            // APIが利用できない場合はサンプルデータを使用
+            setDependencyData([]);
+          }
+        } else {
+          // ローカル開発環境の場合はサンプルデータを使用
+          setDependencyData([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dependencies:', error);
+        setDependencyData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDependencies();
+  }, [subject]);
+
+  // 依存関係データをWeakNodeとWeakEdgeに変換
+  const { nodes, edges } = useMemo(() => {
+    if (dependencyData.length === 0) {
+      // 既存のデータを使用
+      const nodes: WeakNode[] = data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        mastery: item.mastery || Math.floor(Math.random() * 100),
+        attempts: item.questionCount || Math.floor(Math.random() * 30) + 10
+      }));
+
+      const edges: WeakEdge[] = [];
+      data.forEach((item) => {
+        if (item.prerequisites) {
+          item.prerequisites.forEach((prereq: string) => {
+            edges.push({ from: prereq, to: item.id });
+          });
+        }
       });
+
+      return { nodes, edges };
     }
-  });
+
+    // データベースデータを変換
+    const nodes: WeakNode[] = dependencyData.map((item) => ({
+      id: item.id.toString(),
+      name: item.name,
+      mastery: Math.floor(Math.random() * 100), // 仮のデータ（実際はAPIから取得）
+      attempts: Math.floor(Math.random() * 30) + 10
+    }));
+
+    const edges: WeakEdge[] = [];
+    dependencyData.forEach((item) => {
+      if (item.prerequisites) {
+        item.prerequisites.forEach((prereq) => {
+          const prereqItem = dependencyData.find(d => d.name === prereq);
+          if (prereqItem) {
+            edges.push({ from: prereqItem.id.toString(), to: item.id.toString() });
+          }
+        });
+      }
+    });
+
+    return { nodes, edges };
+  }, [dependencyData, data]);
 
   const [selected, setSelected] = useState<WeakNode|null>(null);
   const [lastPack, setLastPack] = useState<string|undefined>(undefined);
@@ -274,6 +420,20 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
       onNodeClick(originalNode ? { ...originalNode, mastery: node.mastery, attempts: node.attempts } : node);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="text-lg font-semibold">弱点マップ（{subject}）</div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">依存関係データを読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">
