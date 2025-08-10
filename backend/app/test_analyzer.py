@@ -204,10 +204,10 @@ class TestResultAnalyzer:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "あなたは教育の専門家で、テスト結果を分析して弱点を特定し、具体的な改善アドバイスを提供します。"},
+                    {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。テスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1000,
+                max_tokens=2000,
                 temperature=0.7
             )
             
@@ -223,31 +223,79 @@ class TestResultAnalyzer:
     def _create_analysis_prompt(self, test_result: Dict) -> str:
         """AI分析用のプロンプトを作成"""
         prompt = f"""
-以下のテスト結果を分析して、弱点と改善アドバイスを提供してください。
+あなたは教育心理学と学習科学に精通した教育コンサルタントです。以下のテスト結果を詳細に分析し、個別化された学習戦略を提案してください。
 
+## テスト結果
 科目: {test_result['subject']}
 テスト名: {test_result['test_name']}
 総合点: {test_result['total_score']}/{test_result['max_score']} ({test_result['score_percentage']:.1f}%)
 
-単元別結果:
+## 単元別結果
 """
         
         for topic in test_result['topics']:
             prompt += f"- {topic['topic']}: {topic['correct_count']}/{topic['total_count']} ({topic['score_percentage']:.1f}%)\n"
         
-        prompt += """
-以下の形式で回答してください：
+        prompt += f"""
 
-弱点分析:
-- 具体的な弱点の説明
+## 分析要求
+以下の観点から詳細な分析を行い、具体的で実行可能な改善策を提案してください：
 
-改善アドバイス:
-- 具体的な学習方法
-- おすすめの練習問題
-- 学習スケジュールの提案
+### 1. 総合的な成績評価
+- 現在の学力レベル（基礎・標準・応用・発展）
+- 全体的な強みと弱み
+- 学習の進捗状況
 
-優先度の高い単元:
-- 最も改善が必要な単元とその理由
+### 2. 単元別詳細分析
+各単元について以下を分析：
+- 理解度の深さ（表面的理解 vs 深い理解）
+- 間違いの傾向（計算ミス、概念理解不足、応用力不足など）
+- 学習の優先順位
+
+### 3. 学習戦略の提案
+- 短期目標（1-2週間）
+- 中期目標（1-2ヶ月）
+- 長期目標（3-6ヶ月）
+- 具体的な学習方法と教材
+- 練習問題の種類と量
+
+### 4. 学習スケジュール
+- 1日の学習時間配分
+- 週間学習計画
+- 復習のタイミング
+
+### 5. モチベーション維持
+- 学習意欲を高める方法
+- 挫折しそうな時の対処法
+- 成功体験の作り方
+
+### 6. 保護者・教師へのアドバイス
+- 家庭でのサポート方法
+- 効果的な声かけ
+- 学習環境の整備
+
+## 回答形式
+以下の構造化された形式で回答してください：
+
+### 総合分析
+[全体的な成績評価と学習状況]
+
+### 単元別分析
+[各単元の詳細分析]
+
+### 改善戦略
+[具体的な学習方法とスケジュール]
+
+### 優先学習項目
+[最も重要な学習項目とその理由]
+
+### 保護者・教師へのアドバイス
+[家庭・学校でのサポート方法]
+
+### 学習スケジュール例
+[具体的な時間配分と計画]
+
+各項目は具体的で実行可能な内容にしてください。
 """
         
         return prompt
@@ -266,24 +314,79 @@ class TestResultAnalyzer:
     
     def _generate_dummy_analysis(self, test_result: Dict) -> Dict:
         """AIが利用できない場合のダミー分析"""
+        overall_score = test_result['score_percentage']
+        
+        # 総合分析
+        if overall_score >= 90:
+            overall_analysis = f"""
+### 総合分析
+{test_result['subject']}のテスト結果は優秀です（{overall_score:.1f}%）。基礎知識がしっかりと身についており、応用力も備わっています。
+
+### 学習戦略
+- 現在の知識を維持しながら、より高度な問題に挑戦
+- 他の科目との関連性を意識した学習
+- 定期テストや模擬試験での実践練習
+
+### 保護者・教師へのアドバイス
+- 子どもの努力を認め、自信を持たせる
+- さらなる挑戦を促す環境作り
+- 他の科目とのバランスを考慮した学習計画
+"""
+        elif overall_score >= 70:
+            overall_analysis = f"""
+### 総合分析
+{test_result['subject']}のテスト結果は良好です（{overall_score:.1f}%）。基本的な理解はできていますが、応用力の向上が課題です。
+
+### 学習戦略
+- 弱点単元の基礎固め
+- 応用問題の練習を増やす
+- 定期的な復習で知識を定着
+
+### 保護者・教師へのアドバイス
+- 子どもの努力を認め、継続を促す
+- 弱点克服のための具体的なサポート
+- 学習習慣の定着を支援
+"""
+        else:
+            overall_analysis = f"""
+### 総合分析
+{test_result['subject']}のテスト結果は改善の余地があります（{overall_score:.1f}%）。基礎から丁寧に復習し、理解を深める必要があります。
+
+### 学習戦略
+- 基礎知識の徹底的な復習
+- 基本問題を繰り返し解く
+- 理解できない部分は質問する習慣
+
+### 保護者・教師へのアドバイス
+- 焦らずに基礎から丁寧に学習
+- 子どものペースに合わせた学習計画
+- 小さな成功体験を積み重ねる
+"""
+        
         analysis = {
-            'overall_analysis': f"{test_result['subject']}のテスト結果を分析しました。",
+            'overall_analysis': overall_analysis,
             'topics': []
         }
         
         for topic in test_result['topics']:
-            if topic['score_percentage'] < 60:
-                weakness = f"{topic['topic']}の理解が不十分です。基礎から復習が必要です。"
-                advice = f"{topic['topic']}の基本問題を繰り返し解き、理解を深めてください。"
-            elif topic['score_percentage'] < 80:
+            score = topic['score_percentage']
+            
+            if score < 60:
+                weakness = f"{topic['topic']}の理解が不十分です。基礎概念の理解から始める必要があります。"
+                advice = f"{topic['topic']}の基本問題を毎日10分ずつ解き、理解を深めてください。分からない部分は必ず質問しましょう。"
+                priority = "高"
+            elif score < 80:
                 weakness = f"{topic['topic']}は基本的な理解はできていますが、応用問題に課題があります。"
-                advice = f"{topic['topic']}の応用問題を多く解き、実践力を向上させてください。"
+                advice = f"{topic['topic']}の応用問題を週に3回、30分ずつ解いて実践力を向上させてください。"
+                priority = "中"
             else:
-                weakness = f"{topic['topic']}は良好な成績です。"
-                advice = f"{topic['topic']}の知識を維持し、さらに発展的な学習に取り組んでください。"
+                weakness = f"{topic['topic']}は良好な成績です。知識がしっかりと身についています。"
+                advice = f"{topic['topic']}の知識を維持し、さらに発展的な学習に取り組んでください。他の単元との関連性も意識しましょう。"
+                priority = "低"
             
             topic['weakness_analysis'] = weakness
             topic['improvement_advice'] = advice
+            topic['priority'] = priority
             analysis['topics'].append(topic)
         
         return analysis

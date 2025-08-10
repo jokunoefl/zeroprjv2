@@ -492,8 +492,71 @@ async def upload_test_result(
         
         db.commit()
         
+        # 詳細な分析結果を生成
+        overall_score = test_result.score_percentage
+        if overall_score >= 90:
+            overall_analysis = f"""
+### 総合分析
+{test_result.subject}のテスト結果は優秀です（{overall_score:.1f}%）。基礎知識がしっかりと身についており、応用力も備わっています。
+
+### 学習戦略
+- 現在の知識を維持しながら、より高度な問題に挑戦
+- 他の科目との関連性を意識した学習
+- 定期テストや模擬試験での実践練習
+
+### 保護者・教師へのアドバイス
+- 子どもの努力を認め、自信を持たせる
+- さらなる挑戦を促す環境作り
+- 他の科目とのバランスを考慮した学習計画
+
+### 学習スケジュール例
+- 平日：30分の応用問題練習
+- 週末：総合問題や過去問に挑戦
+- 月1回：模擬試験で実力を確認
+"""
+        elif overall_score >= 70:
+            overall_analysis = f"""
+### 総合分析
+{test_result.subject}のテスト結果は良好です（{overall_score:.1f}%）。基本的な理解はできていますが、応用力の向上が課題です。
+
+### 学習戦略
+- 弱点単元の基礎固め
+- 応用問題の練習を増やす
+- 定期的な復習で知識を定着
+
+### 保護者・教師へのアドバイス
+- 子どもの努力を認め、継続を促す
+- 弱点克服のための具体的なサポート
+- 学習習慣の定着を支援
+
+### 学習スケジュール例
+- 平日：20分の基礎問題 + 10分の応用問題
+- 週末：弱点単元の重点復習
+- 週1回：理解度チェックテスト
+"""
+        else:
+            overall_analysis = f"""
+### 総合分析
+{test_result.subject}のテスト結果は改善の余地があります（{overall_score:.1f}%）。基礎から丁寧に復習し、理解を深める必要があります。
+
+### 学習戦略
+- 基礎知識の徹底的な復習
+- 基本問題を繰り返し解く
+- 理解できない部分は質問する習慣
+
+### 保護者・教師へのアドバイス
+- 焦らずに基礎から丁寧に学習
+- 子どものペースに合わせた学習計画
+- 小さな成功体験を積み重ねる
+
+### 学習スケジュール例
+- 平日：30分の基礎問題練習
+- 週末：理解できていない単元の重点学習
+- 週2回：基本概念の確認テスト
+"""
+        
         return {
-            "message": "テスト結果のアップロードが完了しました（簡易版）",
+            "message": "テスト結果のアップロードと詳細分析が完了しました",
             "test_result_id": test_result.id,
             "subject": test_result.subject,
             "test_name": test_result.test_name,
@@ -501,7 +564,7 @@ async def upload_test_result(
             "max_score": test_result.max_score,
             "score_percentage": test_result.score_percentage,
             "analysis_status": test_result.analysis_status,
-            "overall_analysis": "テスト結果を分析しました。基本的な理解はできていますが、応用問題の練習を増やすことをお勧めします。",
+            "overall_analysis": overall_analysis,
             "topics": dummy_topics
         }
                 
