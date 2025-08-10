@@ -68,7 +68,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
   const [selectedNode, setSelectedNode] = useState<LearningNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
-  // ノードの位置を計算（シンプルなグリッドレイアウト）
+  // ノードの位置を計算（横方向フロー図レイアウト）
   const nodePositions = useMemo(() => {
     const positions: Record<string, { x: number; y: number }> = {};
     const levelMap: Record<string, number> = {};
@@ -91,13 +91,13 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
       levelNodes[level].push(node.id);
     });
 
-    // シンプルな配置
+    // 横方向フロー図として配置
     Object.entries(levelNodes).forEach(([level, nodeIds]) => {
-      const y = parseInt(level) * 200 + 100;
-      const startX = 100;
+      const x = parseInt(level) * 300 + 150; // 横方向の間隔
+      const startY = 100;
       
       nodeIds.forEach((nodeId, index) => {
-        const x = startX + index * 250;
+        const y = startY + index * 200;
         positions[nodeId] = { x, y };
       });
     });
@@ -117,7 +117,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
         <h3 className="text-lg font-semibold mb-4">学習依存マップ</h3>
         
         {/* 接続線を描画 */}
-        <svg className="absolute inset-0 pointer-events-none">
+        <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '1200px', minHeight: '600px' }}>
           {data.map(node => 
             node.prerequisites.map(prereqId => {
               const start = nodePositions[prereqId];
