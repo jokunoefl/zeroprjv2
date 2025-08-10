@@ -148,24 +148,25 @@ def init_database(db: Session = Depends(get_db)):
 @app.get("/check-tables")
 def check_tables(db: Session = Depends(get_db)):
     """テーブルの存在を確認するエンドポイント"""
+    from sqlalchemy import text
     tables = {}
     try:
         # Check questions table
-        db.execute("SELECT 1 FROM questions LIMIT 1")
+        db.execute(text("SELECT 1 FROM questions LIMIT 1"))
         tables["questions"] = "exists"
     except Exception:
         tables["questions"] = "missing"
     
     try:
         # Check mastery table
-        db.execute("SELECT 1 FROM mastery LIMIT 1")
+        db.execute(text("SELECT 1 FROM mastery LIMIT 1"))
         tables["mastery"] = "exists"
     except Exception:
         tables["mastery"] = "missing"
     
     try:
         # Check attempts table
-        db.execute("SELECT 1 FROM attempts LIMIT 1")
+        db.execute(text("SELECT 1 FROM attempts LIMIT 1"))
         tables["attempts"] = "exists"
     except Exception:
         tables["attempts"] = "missing"
@@ -269,7 +270,8 @@ def next_question(req: NextQuestionReq, db: Session = Depends(get_db)):
     try:
         # First check if mastery table exists
         try:
-            db.execute("SELECT 1 FROM mastery LIMIT 1")
+            from sqlalchemy import text
+            db.execute(text("SELECT 1 FROM mastery LIMIT 1"))
             db.commit()
         except Exception:
             # Mastery table doesn't exist, skip mastery-based logic
