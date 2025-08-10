@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, 
@@ -12,9 +12,6 @@ import {
   Zap,
   TrendingUp,
   BookOpen,
-  Lightbulb,
-  ChevronRight,
-  ChevronLeft,
   Maximize2,
   Minimize2
 } from "lucide-react";
@@ -24,7 +21,7 @@ interface LearningNode {
   id: string;
   name: string;
   mastery: number; // 0-100
-  recentQuestions: number; // 最近の出題量
+  questionCount: number; // 最近の出題量
   prerequisites: string[]; // 前提単元のID
   dependencies: string[]; // 後続単元のID
   mistakeTypes: {
@@ -63,11 +60,7 @@ const PRIORITY_COLORS = {
   low: '#10B981'
 };
 
-const DIFFICULTY_COLORS = {
-  easy: '#10B981',
-  medium: '#F59E0B',
-  hard: '#EF4444'
-};
+
 
 // マスターレベルに基づく色を取得
 function getMasteryColor(mastery: number): string {
@@ -117,7 +110,6 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
     // 位置を割り当て（より広いスペース）
     Object.entries(levelNodes).forEach(([level, nodeIds]) => {
       const y = parseInt(level) * 150 + 80;
-      const totalWidth = nodeIds.length * 200;
       const startX = 100;
       
       nodeIds.forEach((nodeId, index) => {
@@ -274,7 +266,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
               const position = nodePositions[node.id];
               if (!position) return null;
 
-              const size = getNodeSize(node.recentQuestions);
+              const size = getNodeSize(node.questionCount);
               const color = getMasteryColor(node.mastery);
               const isSelected = selectedNode?.id === node.id;
               const isHovered = hoveredNode === node.id;
@@ -364,17 +356,17 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
                     </div>
                   </div>
 
-                  {/* 基本情報 */}
-                  <div className="grid grid-cols-2 gap-4 pt-3">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{selectedNode.recentQuestions}</div>
-                      <div className="text-xs text-gray-600">最近の出題</div>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{selectedNode.estimatedTime}分</div>
-                      <div className="text-xs text-gray-600">推定時間</div>
-                    </div>
-                  </div>
+                                     {/* 基本情報 */}
+                   <div className="grid grid-cols-2 gap-4 pt-3">
+                     <div className="text-center p-3 bg-blue-50 rounded-lg">
+                       <div className="text-2xl font-bold text-blue-600">{selectedNode.questionCount}</div>
+                       <div className="text-xs text-gray-600">最近の出題</div>
+                     </div>
+                     <div className="text-center p-3 bg-green-50 rounded-lg">
+                       <div className="text-2xl font-bold text-green-600">{selectedNode.estimatedTime}分</div>
+                       <div className="text-xs text-gray-600">推定時間</div>
+                     </div>
+                   </div>
                 </div>
 
                 {/* ミス傾向 */}
@@ -517,7 +509,7 @@ export const sampleWeaknessData: LearningNode[] = [
     id: "fractions",
     name: "分数の計算",
     mastery: 45,
-    recentQuestions: 8,
+    questionCount: 8,
     prerequisites: [],
     dependencies: ["ratio", "percentage"],
     mistakeTypes: {
@@ -540,7 +532,7 @@ export const sampleWeaknessData: LearningNode[] = [
     id: "ratio",
     name: "割合",
     mastery: 65,
-    recentQuestions: 12,
+    questionCount: 12,
     prerequisites: ["fractions"],
     dependencies: ["percentage"],
     mistakeTypes: {
@@ -563,7 +555,7 @@ export const sampleWeaknessData: LearningNode[] = [
     id: "percentage",
     name: "百分率",
     mastery: 85,
-    recentQuestions: 6,
+    questionCount: 6,
     prerequisites: ["fractions", "ratio"],
     dependencies: [],
     mistakeTypes: {
@@ -586,7 +578,7 @@ export const sampleWeaknessData: LearningNode[] = [
     id: "decimals",
     name: "小数の計算",
     mastery: 30,
-    recentQuestions: 10,
+    questionCount: 10,
     prerequisites: [],
     dependencies: ["fractions"],
     mistakeTypes: {
@@ -609,7 +601,7 @@ export const sampleWeaknessData: LearningNode[] = [
     id: "algebra",
     name: "文字式",
     mastery: 75,
-    recentQuestions: 5,
+    questionCount: 5,
     prerequisites: ["fractions", "decimals"],
     dependencies: [],
     mistakeTypes: {

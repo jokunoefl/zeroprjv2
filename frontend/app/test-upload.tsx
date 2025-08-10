@@ -70,7 +70,7 @@ export default function TestUpload() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.detail || errorMessage;
-        } catch (parseError) {
+        } catch {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
         alert(`アップロードエラー: ${errorMessage}`);
