@@ -370,10 +370,26 @@ class TestResultAnalyzer:
             # PDFファイルを直接アップロードして分析（テキスト抽出なし）
             try:
                 print(f"PDFファイル直接アップロード開始: {pdf_file_path}")
+                print(f"ファイル存在確認: {os.path.exists(pdf_file_path)}")
+                print(f"ファイルサイズ確認: {os.path.getsize(pdf_file_path)} bytes")
+                
                 with open(pdf_file_path, 'rb') as pdf_file:
                     pdf_content = pdf_file.read()
                     print(f"PDFファイル読み込み完了: {len(pdf_content)} bytes")
+                    print(f"PDFファイルの最初の100バイト: {pdf_content[:100]}")
                     
+                    # PDFヘッダーの確認
+                    if pdf_content.startswith(b'%PDF'):
+                        print("有効なPDFファイルです")
+                    else:
+                        print("警告: PDFヘッダーが見つかりません")
+                    
+                    # Base64エンコード
+                    base64_content = base64.b64encode(pdf_content).decode('utf-8')
+                    print(f"Base64エンコード完了: {len(base64_content)} 文字")
+                    
+                    # ChatGPTへの送信
+                    print("ChatGPTへの送信開始...")
                     response = self.client.chat.completions.create(
                         model="gpt-5",
                         messages=[
@@ -391,7 +407,7 @@ class TestResultAnalyzer:
                                     {
                                         "type": "file_url",
                                         "file_url": {
-                                            "url": f"data:application/pdf;base64,{base64.b64encode(pdf_content).decode('utf-8')}"
+                                            "url": f"data:application/pdf;base64,{base64_content}"
                                         }
                                     }
                                 ]
@@ -400,12 +416,17 @@ class TestResultAnalyzer:
                         max_tokens=4000,
                         temperature=0.7
                     )
+                    print("ChatGPTからの応答受信完了")
                 
                 analysis_text = response.choices[0].message.content
                 print(f"AI分析結果: {analysis_text[:200]}...")
+                print(f"分析結果の長さ: {len(analysis_text)} 文字")
                 
                 # 分析結果を構造化
-                return self._parse_pdf_analysis(analysis_text, pdf_file_path, "")
+                result = self._parse_pdf_analysis(analysis_text, pdf_file_path, "")
+                print(f"構造化された結果の分析手法: {result.get('analysis_method', 'unknown')}")
+                print(f"構造化された結果のソースファイル: {result.get('source_file', 'unknown')}")
+                return result
                 
             except Exception as file_upload_error:
                 print(f"PDFファイル直接アップロードエラー: {file_upload_error}")

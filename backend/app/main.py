@@ -493,9 +493,21 @@ async def upload_test_result(
                             else:
                                 print("警告: PDFヘッダーが見つかりません")
                     
+                    # ファイルの内容を再度確認
+                    print(f"分析前のファイル確認:")
+                    print(f"  ファイルパス: {temp_file_path}")
+                    print(f"  ファイル存在: {os.path.exists(temp_file_path)}")
+                    print(f"  ファイルサイズ: {os.path.getsize(temp_file_path)} bytes")
+                    
+                    # ファイルの内容をサンプル表示
+                    with open(temp_file_path, 'rb') as f:
+                        sample_content = f.read(200)
+                        print(f"  ファイル内容サンプル: {sample_content[:100]}...")
+                    
                     analysis_result = analyzer.analyze_pdf_directly_with_ai(temp_file_path, user_id)
                     
                     print(f"PDF分析完了: {analysis_result.get('analysis_method', 'unknown')}")
+                    print(f"分析結果のソースファイル: {analysis_result.get('source_file', 'unknown')}")
                     
                 except Exception as analysis_error:
                     print(f"PDF分析エラー詳細: {analysis_error}")
