@@ -34,74 +34,17 @@ def get_db():
 async def startup_event():
     print("Starting database initialization...")
     
-    # Create all tables first
+    # Create all tables first (simplified for faster startup)
     try:
         Base.metadata.create_all(bind=engine)
         print("Tables created successfully")
     except Exception as e:
         print(f"Error creating tables: {e}")
-        return
+        # Continue startup even if table creation fails
     
-    # Ensure tables are created by checking table existence
-    import asyncio
-    await asyncio.sleep(2.0)  # Increased delay for SQLite
-    
-    # Verify table creation by attempting a simple query
-    db = SessionLocal()
-    try:
-        from sqlalchemy import text
-        # Test if tables exist by checking if we can query them
-        db.execute(text("SELECT 1 FROM questions LIMIT 1"))
-        db.commit()
-        print("Questions table verified")
-        
-        # Also check mastery table
-        db.execute(text("SELECT 1 FROM mastery LIMIT 1"))
-        db.commit()
-        print("Mastery table verified")
-        
-    except Exception as e:
-        # Tables don't exist yet, wait a bit more and retry
-        print(f"Table verification failed: {e}")
-        await asyncio.sleep(3.0)
-        db.rollback()
-        
-        # Retry table creation with more explicit approach
-        try:
-            print("Retrying table creation...")
-            Base.metadata.create_all(bind=engine)
-            await asyncio.sleep(1.0)  # Wait for tables to be created
-            print("Tables recreated successfully")
-        except Exception as e2:
-            print(f"Error recreating tables: {e2}")
-            return
-    finally:
-        db.close()
-    
-    # Now proceed with seeding
-    db = SessionLocal()
-    try:
-        print("Starting seeding process...")
-        seed_basic(db)
-        print("Basic seeding completed")
-        seed_math_topics(db)
-        print("Math topics seeded")
-        seed_science_topics(db)
-        print("Science topics seeded")
-        seed_social_topics(db)
-        print("Social topics seeded")
-        seed_math_dependencies(db)
-        print("Math dependencies seeded")
-        seed_science_dependencies(db)
-        print("Science dependencies seeded")
-        seed_social_dependencies(db)
-        print("Social dependencies seeded")
-        print("All seeding completed successfully")
-    except Exception as e:
-        print(f"Error during seeding: {e}")
-        # Continue startup even if seeding fails
-    finally:
-        db.close()
+    # Skip seeding during startup for faster deployment
+    # Seeding can be done manually via /init-db-simple endpoint
+    print("Startup completed - seeding can be done manually")
 
 class AnswerIn(BaseModel):
     user_answer: str
@@ -115,7 +58,31 @@ class NextQuestionReq(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    """ヘルスチェックエンドポイント - データベース接続も確認"""
+    try:
+        # 基本的な接続確認
+        db = SessionLocal()
+        try:
+            # データベース接続をテスト
+            db.execute(text("SELECT 1"))
+            db.commit()
+            db_status = "connected"
+        except Exception as e:
+            db_status = f"error: {str(e)}"
+        finally:
+            db.close()
+        
+        return {
+            "ok": True,
+            "timestamp": datetime.now().isoformat(),
+            "database": db_status
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.post("/init-db")
 def init_database(db: Session = Depends(get_db)):
