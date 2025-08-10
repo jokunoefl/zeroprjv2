@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from .models import Question, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency
+from .models import Question, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail
 import json
 from datetime import datetime, timedelta
 

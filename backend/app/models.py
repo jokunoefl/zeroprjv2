@@ -122,6 +122,38 @@ class SocialDependency(Base):
     # リレーション
     social_topic = relationship("SocialTopic", back_populates="dependencies")
 
+class TestResult(Base):
+    __tablename__ = "test_results"
+    id: Mapped[int] = Column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = Column(Integer, ForeignKey("users.id"))
+    subject: Mapped[str] = Column(String)  # 算数、理科、社会
+    test_name: Mapped[str] = Column(String)  # テスト名
+    test_date: Mapped[DateTime] = Column(DateTime(timezone=True), server_default=func.now())
+    total_score: Mapped[int] = Column(Integer)  # 総合点
+    max_score: Mapped[int] = Column(Integer)  # 満点
+    score_percentage: Mapped[float] = Column(Float)  # 正答率
+    file_path: Mapped[Optional[str]] = Column(String, nullable=True)  # アップロードファイルのパス
+    analysis_status: Mapped[str] = Column(String, default="pending")  # pending, processing, completed, failed
+    created_at: Mapped[DateTime] = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # リレーション
+    user = relationship("User")
+    details = relationship("TestResultDetail", back_populates="test_result")
+
+class TestResultDetail(Base):
+    __tablename__ = "test_result_details"
+    id: Mapped[int] = Column(Integer, primary_key=True, index=True)
+    test_result_id: Mapped[int] = Column(Integer, ForeignKey("test_results.id"))
+    topic: Mapped[str] = Column(String)  # 単元名
+    correct_count: Mapped[int] = Column(Integer)  # 正解数
+    total_count: Mapped[int] = Column(Integer)  # 問題数
+    score_percentage: Mapped[float] = Column(Float)  # 単元別正答率
+    weakness_analysis: Mapped[Optional[str]] = Column(Text, nullable=True)  # AI分析結果
+    improvement_advice: Mapped[Optional[str]] = Column(Text, nullable=True)  # 改善アドバイス
+    
+    # リレーション
+    test_result = relationship("TestResult", back_populates="details")
+
 # SocialTopicにリレーションを追加
 SocialTopic.dependencies = relationship("SocialDependency", back_populates="social_topic")
 

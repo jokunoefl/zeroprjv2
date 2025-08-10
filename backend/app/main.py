@@ -1,11 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
+import os
+import tempfile
+import shutil
 from .db import SessionLocal, engine, Base
-from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency
+from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail
 from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies, seed_social_dependencies
+from .test_analyzer import TestResultAnalyzer
 import json
 import random
 from datetime import datetime, timedelta
@@ -55,6 +59,25 @@ class NextQuestionReq(BaseModel):
     user_id: int = 1 # Dummy user_id for now
     subject: Optional[str] = None
     mode: str = "practice"
+
+class TestResultResponse(BaseModel):
+    id: int
+    subject: str
+    test_name: str
+    total_score: int
+    max_score: int
+    score_percentage: float
+    analysis_status: str
+    created_at: datetime
+    details: List[Dict]
+
+class TestResultDetailResponse(BaseModel):
+    topic: str
+    correct_count: int
+    total_count: int
+    score_percentage: float
+    weakness_analysis: Optional[str]
+    improvement_advice: Optional[str]
 
 @app.get("/health")
 def health():
@@ -270,6 +293,160 @@ def test_connection():
     }
 
 
+
+@app.post("/upload-test-result")
+async def upload_test_result(
+    file: UploadFile = File(...),
+    user_id: int = Form(1),
+    subject: Optional[str] = Form(None),
+    test_name: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """テスト結果ファイルをアップロードしてAI分析を実行"""
+    try:
+        # ファイル形式の確認
+        allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff']
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        
+        if file_ext not in allowed_extensions:
+            raise HTTPException(status_code=400, detail="サポートされていないファイル形式です")
+        
+        # 一時ファイルに保存
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+            temp_file_path = temp_file.name
+        
+        try:
+            # テスト結果分析器を初期化
+            analyzer = TestResultAnalyzer()
+            
+            # ファイルからテキストを抽出
+            text = analyzer.extract_text_from_file(temp_file_path)
+            
+            # テスト結果を解析
+            parsed_result = analyzer.parse_test_result(text)
+            
+            # AI分析を実行
+            analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
+            
+            # データベースに保存
+            test_result = TestResult(
+                user_id=user_id,
+                subject=subject or parsed_result['subject'],
+                test_name=test_name or parsed_result['test_name'],
+                total_score=parsed_result['total_score'] or 0,
+                max_score=parsed_result['max_score'] or 100,
+                score_percentage=parsed_result['score_percentage'],
+                file_path=file.filename,
+                analysis_status="completed"
+            )
+            
+            db.add(test_result)
+            db.flush()  # IDを取得するためにflush
+            
+            # 単元別詳細を保存
+            for topic_data in analysis_result['topics']:
+                detail = TestResultDetail(
+                    test_result_id=test_result.id,
+                    topic=topic_data['topic'],
+                    correct_count=topic_data['correct_count'],
+                    total_count=topic_data['total_count'],
+                    score_percentage=topic_data['score_percentage'],
+                    weakness_analysis=topic_data.get('weakness_analysis'),
+                    improvement_advice=topic_data.get('improvement_advice')
+                )
+                db.add(detail)
+            
+            db.commit()
+            
+            return {
+                "message": "テスト結果のアップロードと分析が完了しました",
+                "test_result_id": test_result.id,
+                "subject": test_result.subject,
+                "test_name": test_result.test_name,
+                "total_score": test_result.total_score,
+                "max_score": test_result.max_score,
+                "score_percentage": test_result.score_percentage,
+                "analysis_status": test_result.analysis_status,
+                "overall_analysis": analysis_result['overall_analysis'],
+                "topics": analysis_result['topics']
+            }
+            
+        finally:
+            # 一時ファイルを削除
+            os.unlink(temp_file_path)
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"アップロード処理エラー: {str(e)}")
+
+@app.get("/test-results/{user_id}")
+def get_test_results(user_id: int, db: Session = Depends(get_db)):
+    """ユーザーのテスト結果一覧を取得"""
+    test_results = db.query(TestResult).filter(TestResult.user_id == user_id).order_by(TestResult.created_at.desc()).all()
+    
+    result_list = []
+    for test_result in test_results:
+        details = db.query(TestResultDetail).filter(TestResultDetail.test_result_id == test_result.id).all()
+        detail_list = []
+        for detail in details:
+            detail_list.append({
+                "topic": detail.topic,
+                "correct_count": detail.correct_count,
+                "total_count": detail.total_count,
+                "score_percentage": detail.score_percentage,
+                "weakness_analysis": detail.weakness_analysis,
+                "improvement_advice": detail.improvement_advice
+            })
+        
+        result_list.append({
+            "id": test_result.id,
+            "subject": test_result.subject,
+            "test_name": test_result.test_name,
+            "total_score": test_result.total_score,
+            "max_score": test_result.max_score,
+            "score_percentage": test_result.score_percentage,
+            "analysis_status": test_result.analysis_status,
+            "created_at": test_result.created_at,
+            "details": detail_list
+        })
+    
+    return {"test_results": result_list}
+
+@app.get("/test-results/{user_id}/{test_result_id}")
+def get_test_result_detail(user_id: int, test_result_id: int, db: Session = Depends(get_db)):
+    """特定のテスト結果の詳細を取得"""
+    test_result = db.query(TestResult).filter(
+        TestResult.id == test_result_id,
+        TestResult.user_id == user_id
+    ).first()
+    
+    if not test_result:
+        raise HTTPException(status_code=404, detail="テスト結果が見つかりません")
+    
+    details = db.query(TestResultDetail).filter(TestResultDetail.test_result_id == test_result.id).all()
+    detail_list = []
+    for detail in details:
+        detail_list.append({
+            "topic": detail.topic,
+            "correct_count": detail.correct_count,
+            "total_count": detail.total_count,
+            "score_percentage": detail.score_percentage,
+            "weakness_analysis": detail.weakness_analysis,
+            "improvement_advice": detail.improvement_advice
+        })
+    
+    return {
+        "id": test_result.id,
+        "subject": test_result.subject,
+        "test_name": test_result.test_name,
+        "total_score": test_result.total_score,
+        "max_score": test_result.max_score,
+        "score_percentage": test_result.score_percentage,
+        "analysis_status": test_result.analysis_status,
+        "created_at": test_result.created_at,
+        "file_path": test_result.file_path,
+        "details": detail_list
+    }
 
 @app.post("/questions/{question_id}/answer")
 def grade_answer(question_id: int, answer_in: AnswerIn, db: Session = Depends(get_db)):
