@@ -2,8 +2,25 @@
 import React, { useMemo, useState } from "react";
 
 // ====== 既存：汎用GET API関数・取得ユーティリティ ======
-async function apiGet(path: string){
-  if(!(window as any).API_BASE){
+interface ApiResponse {
+  id?: number;
+  subject?: string;
+  topic?: string;
+  text?: string;
+  hint?: string;
+  correct?: string;
+  unit?: string;
+  ok?: boolean;
+}
+
+interface WindowWithAPI extends Window {
+  API_BASE?: string;
+  AUTH_TOKEN?: string;
+}
+
+async function apiGet(path: string): Promise<ApiResponse>{
+  const windowWithAPI = window as WindowWithAPI;
+  if(!windowWithAPI.API_BASE){
     const m = path.match(/\/questions\/(\d+)/);
     if(m){
       const id = Number(m[1]);
@@ -31,10 +48,10 @@ async function apiGet(path: string){
         };
       }
     }
-    return { ok: true } as any;
+    return { ok: true };
   }
-  const API_BASE = (window as any).API_BASE;
-  const AUTH_TOKEN = (window as any).AUTH_TOKEN;
+  const API_BASE = windowWithAPI.API_BASE;
+  const AUTH_TOKEN = windowWithAPI.AUTH_TOKEN;
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'GET',
     headers: {
@@ -44,9 +61,7 @@ async function apiGet(path: string){
   return await res.json();
 }
 
-async function fetchQuestionById(questionId: number){
-  return apiGet(`/questions/${questionId}`);
-}
+
 
 // ====== Weakness Map（依存マップ + 詳細ペイン） ======
 type WeakNode = { id: string; name: string; mastery: number; attempts: number; recent_decay?: number; };
@@ -211,9 +226,22 @@ export default function App(){
 }
 
 // 既存のコンポーネントとの互換性のため、元のインターフェースも保持
-export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subject = "math" }: any) {
+interface WeaknessMapComponentProps {
+  data: Array<{
+    id: string;
+    name: string;
+    mastery?: number;
+    questionCount?: number;
+    prerequisites?: string[];
+  }>;
+  onNodeClick?: (node: WeakNode) => void;
+  onStartPractice?: (nodeId: string, type: 'current' | 'prerequisite' | 'quick') => void;
+  subject?: string;
+}
+
+export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subject = "math" }: WeaknessMapComponentProps) {
   // 既存のインターフェースを新しい実装に変換
-  const nodes: WeakNode[] = data.map((item: any) => ({
+  const nodes: WeakNode[] = data.map((item) => ({
     id: item.id,
     name: item.name,
     mastery: item.mastery || Math.floor(Math.random() * 100),
@@ -221,7 +249,7 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
   }));
 
   const edges: WeakEdge[] = [];
-  data.forEach((item: any) => {
+  data.forEach((item) => {
     if (item.prerequisites) {
       item.prerequisites.forEach((prereq: string) => {
         edges.push({ from: prereq, to: item.id });
@@ -242,8 +270,8 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
   const handleNodeSelect = (node: WeakNode) => {
     setSelected(node);
     if (onNodeClick) {
-      const originalNode = data.find((item: any) => item.id === node.id);
-      onNodeClick(originalNode || node);
+      const originalNode = data.find((item) => item.id === node.id);
+      onNodeClick(originalNode ? { ...originalNode, mastery: node.mastery, attempts: node.attempts } : node);
     }
   };
 
