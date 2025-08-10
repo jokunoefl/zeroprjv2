@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   ArrowRight, 
@@ -34,12 +34,15 @@ interface LearningNode {
   difficulty: 'easy' | 'medium' | 'hard';
   estimatedTime: number; // 分単位
   priority: 'high' | 'medium' | 'low';
+  subject?: string;
+  domain?: string;
 }
 
 interface WeaknessMapProps {
   data: LearningNode[];
   onNodeClick: (node: LearningNode) => void;
   onStartPractice: (nodeId: string, type: 'current' | 'prerequisite' | 'quick') => void;
+  subject?: string;
 }
 
 // 色の定義
@@ -64,9 +67,78 @@ function getNodeSize(questions: number): number {
 }
 
 // 依存マップのメインコンポーネント
-export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapProps) {
+export function WeaknessMap({ data, onNodeClick, onStartPractice, subject = "math" }: WeaknessMapProps) {
   const [selectedNode, setSelectedNode] = useState<LearningNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [dbData, setDbData] = useState<LearningNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // データベースから依存関係データを取得
+  useEffect(() => {
+    const fetchDependencies = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || ''}/dependencies/${subject}/flow`);
+        if (response.ok) {
+          const result = await response.json();
+          const topics = result.topics || [];
+          
+          // データベースのデータをLearningNode形式に変換
+          const convertedData: LearningNode[] = topics.map((topic: any) => ({
+            id: topic.id.toString(),
+            name: topic.name,
+            mastery: Math.floor(Math.random() * 100), // 仮のデータ
+            questionCount: Math.floor(Math.random() * 15) + 5,
+            prerequisites: topic.prerequisites || [],
+            dependencies: topic.dependencies || [],
+            mistakeTypes: {
+              calculation: Math.floor(Math.random() * 80),
+              comprehension: Math.floor(Math.random() * 60),
+              logic: Math.floor(Math.random() * 70)
+            },
+            recentQuestions: [
+              {
+                id: "1",
+                text: `${topic.name}に関する問題1`,
+                isCorrect: Math.random() > 0.5,
+                timeSpent: Math.floor(Math.random() * 60) + 30
+              },
+              {
+                id: "2",
+                text: `${topic.name}に関する問題2`,
+                isCorrect: Math.random() > 0.5,
+                timeSpent: Math.floor(Math.random() * 60) + 30
+              },
+              {
+                id: "3",
+                text: `${topic.name}に関する問題3`,
+                isCorrect: Math.random() > 0.5,
+                timeSpent: Math.floor(Math.random() * 60) + 30
+              }
+            ],
+            difficulty: Math.random() > 0.7 ? 'hard' : Math.random() > 0.4 ? 'medium' : 'easy',
+            estimatedTime: Math.floor(Math.random() * 20) + 10,
+            priority: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low',
+            subject: topic.subject,
+            domain: topic.domain
+          }));
+          
+          setDbData(convertedData);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dependencies:', error);
+        // エラーの場合はサンプルデータを使用
+        setDbData(sampleWeaknessData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDependencies();
+  }, [subject]);
+
+  // 使用するデータを決定（データベースデータがあれば使用、なければサンプルデータ）
+  const displayData = dbData.length > 0 ? dbData : data;
 
   // ノードの位置を計算（横方向フロー図レイアウト）
   const nodePositions = useMemo(() => {
@@ -74,18 +146,21 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
     const levelMap: Record<string, number> = {};
     
     // レベルを計算
-    data.forEach(node => {
+    displayData.forEach(node => {
       if (node.prerequisites.length === 0) {
         levelMap[node.id] = 0;
       } else {
-        const maxPrereqLevel = Math.max(...node.prerequisites.map(p => levelMap[p] || 0));
+        const maxPrereqLevel = Math.max(...node.prerequisites.map(p => {
+          const prereqNode = displayData.find(n => n.name === p || n.id === p);
+          return prereqNode ? (levelMap[prereqNode.id] || 0) : 0;
+        }));
         levelMap[node.id] = maxPrereqLevel + 1;
       }
     });
 
     // 各レベル内での位置を計算
     const levelNodes: Record<number, string[]> = {};
-    data.forEach(node => {
+    displayData.forEach(node => {
       const level = levelMap[node.id];
       if (!levelNodes[level]) levelNodes[level] = [];
       levelNodes[level].push(node.id);
@@ -103,32 +178,46 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
     });
 
     return positions;
-  }, [data]);
+  }, [displayData]);
 
   const handleNodeClick = (node: LearningNode) => {
     setSelectedNode(node);
     onNodeClick(node);
   };
 
+  if (loading) {
+    return (
+      <div className="flex h-[600px] bg-gray-50 rounded-xl overflow-hidden items-center justify-center">
+        <div className="text-center">
+          <Brain className="w-12 h-12 mx-auto mb-4 text-gray-400 animate-pulse" />
+          <p className="text-gray-600">依存関係データを読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[600px] bg-gray-50 rounded-xl overflow-hidden">
       {/* 左側: 依存マップ */}
       <div className="flex-1 relative p-4 overflow-auto">
-        <h3 className="text-lg font-semibold mb-4">学習依存マップ</h3>
+        <h3 className="text-lg font-semibold mb-4">学習依存マップ - {subject}</h3>
         
         {/* 接続線を描画 */}
         <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: '1200px', minHeight: '600px' }}>
-          {data.map(node => 
-            node.prerequisites.map(prereqId => {
-              const start = nodePositions[prereqId];
+          {displayData.map(node => 
+            node.prerequisites.map(prereqName => {
+              const prereqNode = displayData.find(n => n.name === prereqName || n.id === prereqName);
+              if (!prereqNode) return null;
+              
+              const start = nodePositions[prereqNode.id];
               const end = nodePositions[node.id];
               if (!start || !end) return null;
               
-              const isHovered = hoveredNode === node.id || hoveredNode === prereqId;
+              const isHovered = hoveredNode === node.id || hoveredNode === prereqNode.id;
               
               return (
                 <line
-                  key={`${prereqId}-${node.id}`}
+                  key={`${prereqNode.id}-${node.id}`}
                   x1={start.x}
                   y1={start.y}
                   x2={end.x}
@@ -155,7 +244,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
         </svg>
 
         {/* ノードを描画 */}
-        {data.map(node => {
+        {displayData.map(node => {
           const position = nodePositions[node.id];
           if (!position) return null;
 
@@ -353,7 +442,7 @@ export function WeaknessMap({ data, onNodeClick, onStartPractice }: WeaknessMapP
   );
 }
 
-// サンプルデータ
+// サンプルデータ（フォールバック用）
 export const sampleWeaknessData: LearningNode[] = [
   {
     id: "fractions",
@@ -423,51 +512,5 @@ export const sampleWeaknessData: LearningNode[] = [
     difficulty: 'medium',
     estimatedTime: 12,
     priority: 'low'
-  },
-  {
-    id: "decimals",
-    name: "小数の計算",
-    mastery: 30,
-    questionCount: 10,
-    prerequisites: [],
-    dependencies: ["fractions"],
-    mistakeTypes: {
-      calculation: 70,
-      comprehension: 20,
-      logic: 10
-    },
-    recentQuestions: [
-      { id: "16", text: "0.5 + 0.25 = ?", isCorrect: false, timeSpent: 35 },
-      { id: "17", text: "1.2 × 0.3 = ?", isCorrect: false, timeSpent: 50 },
-      { id: "18", text: "0.8 ÷ 0.2 = ?", isCorrect: true, timeSpent: 25 },
-      { id: "19", text: "0.6 + 0.4 = ?", isCorrect: true, timeSpent: 15 },
-      { id: "20", text: "2.5 × 0.4 = ?", isCorrect: false, timeSpent: 45 }
-    ],
-    difficulty: 'easy',
-    estimatedTime: 10,
-    priority: 'high'
-  },
-  {
-    id: "algebra",
-    name: "文字式",
-    mastery: 75,
-    questionCount: 5,
-    prerequisites: ["fractions", "decimals"],
-    dependencies: [],
-    mistakeTypes: {
-      calculation: 25,
-      comprehension: 45,
-      logic: 30
-    },
-    recentQuestions: [
-      { id: "21", text: "x + 3 = 8 のとき、x = ?", isCorrect: true, timeSpent: 20 },
-      { id: "22", text: "2x - 5 = 7 のとき、x = ?", isCorrect: true, timeSpent: 30 },
-      { id: "23", text: "3x + 2 = 11 のとき、x = ?", isCorrect: false, timeSpent: 40 },
-      { id: "24", text: "x/2 = 4 のとき、x = ?", isCorrect: true, timeSpent: 25 },
-      { id: "25", text: "2x + 1 = 9 のとき、x = ?", isCorrect: true, timeSpent: 35 }
-    ],
-    difficulty: 'hard',
-    estimatedTime: 18,
-    priority: 'medium'
   }
 ];

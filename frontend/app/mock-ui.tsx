@@ -444,6 +444,8 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
     );
   }
 
+  const [selectedSubject, setSelectedSubject] = useState("math");
+
   if (showWeaknessMap) {
     return (
       <div className="space-y-6">
@@ -457,13 +459,25 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
               <p className="text-sm text-gray-600">学習項目の関連性と弱点を可視化</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowWeaknessMap(false)}
-            className="rounded-xl"
-          >
-            ← 戻る
-          </Button>
+          <div className="flex items-center gap-4">
+            <Select value={selectedSubject} onValueChange={(v: any) => setSelectedSubject(v)}>
+              <SelectTrigger className="w-32 rounded-xl">
+                <SelectValue placeholder="科目" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="math">算数</SelectItem>
+                <SelectItem value="science">理科</SelectItem>
+                <SelectItem value="social">社会</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowWeaknessMap(false)}
+              className="rounded-xl"
+            >
+              ← 戻る
+            </Button>
+          </div>
         </div>
         
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
@@ -471,6 +485,7 @@ function ChildScreen({ onStart }: { onStart: (s?: string, t?: string)=>void }){
             data={sampleWeaknessData}
             onNodeClick={handleNodeClick}
             onStartPractice={handleStartPractice}
+            subject={selectedSubject}
           />
         </div>
       </div>

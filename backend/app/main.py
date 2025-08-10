@@ -977,4 +977,180 @@ def get_science_learning_path(topic_name: str, db: Session = Depends(get_db)):
         "learning_path": all_prerequisites + [topic_name] + all_next_topics
     }
 
+@app.get("/dependencies/{subject}")
+def get_dependencies(subject: str, db: Session = Depends(get_db)):
+    """指定された科目の依存関係データを取得"""
+    try:
+        if subject.lower() == "math":
+            dependencies = db.query(MathDependency).all()
+            return [
+                {
+                    "id": dep.id,
+                    "name": dep.topic_name,
+                    "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
+                    "dependencies": [dep.next_topic] if dep.next_topic else [],
+                    "subject": "math"
+                }
+                for dep in dependencies
+            ]
+        elif subject.lower() == "science":
+            dependencies = db.query(ScienceDependency).all()
+            return [
+                {
+                    "id": dep.id,
+                    "name": dep.topic_name,
+                    "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
+                    "dependencies": dep.next_topics.split(';') if dep.next_topics else [],
+                    "subject": "science",
+                    "domain": dep.domain
+                }
+                for dep in dependencies
+            ]
+        elif subject.lower() == "social":
+            dependencies = db.query(SocialDependency).all()
+            return [
+                {
+                    "id": dep.id,
+                    "name": dep.topic_name,
+                    "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
+                    "dependencies": dep.next_topics.split(';') if dep.next_topics else [],
+                    "subject": "social",
+                    "domain": dep.domain
+                }
+                for dep in dependencies
+            ]
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/dependencies/{subject}/flow")
+def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
+    """指定された科目の依存関係フローを取得（フロントエンド用）"""
+    try:
+        if subject.lower() == "math":
+            dependencies = db.query(MathDependency).all()
+            # 依存関係を構築
+            dependency_map = {}
+            for dep in dependencies:
+                dependency_map[dep.topic_name] = {
+                    "id": dep.id,
+                    "name": dep.topic_name,
+                    "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
+                    "dependencies": [dep.next_topic] if dep.next_topic else [],
+                    "subject": "math"
+                }
+            
+            # レベルを計算
+            levels = {}
+            for dep in dependencies:
+                if not dep.prerequisite_topic:
+                    levels[dep.topic_name] = 0
+                else:
+                    max_level = 0
+                    if dep.prerequisite_topic in levels:
+                        max_level = levels[dep.prerequisite_topic]
+                    levels[dep.topic_name] = max_level + 1
+            
+            # レベル別にグループ化
+            level_groups = {}
+            for topic_name, level in levels.items():
+                if level not in level_groups:
+                    level_groups[level] = []
+                level_groups[level].append(dependency_map[topic_name])
+            
+            return {
+                "subject": "math",
+                "levels": level_groups,
+                "topics": list(dependency_map.values())
+            }
+            
+        elif subject.lower() == "science":
+            dependencies = db.query(ScienceDependency).all()
+            # 依存関係を構築
+            dependency_map = {}
+            for dep in dependencies:
+                prereqs = dep.prerequisite_topics.split(';') if dep.prerequisite_topics else []
+                deps = dep.next_topics.split(';') if dep.next_topics else []
+                dependency_map[dep.topic_name] = {
+                    "id": dep.id,
+                    "name": dep.topic_name,
+                    "prerequisites": prereqs,
+                    "dependencies": deps,
+                    "subject": "science",
+                    "domain": dep.domain
+                }
+            
+            # レベルを計算
+            levels = {}
+            for dep in dependencies:
+                if not dep.prerequisite_topics:
+                    levels[dep.topic_name] = 0
+                else:
+                    prereqs = dep.prerequisite_topics.split(';')
+                    max_level = 0
+                    for prereq in prereqs:
+                        if prereq.strip() in levels:
+                            max_level = max(max_level, levels[prereq.strip()])
+                    levels[dep.topic_name] = max_level + 1
+            
+            # レベル別にグループ化
+            level_groups = {}
+            for topic_name, level in levels.items():
+                if level not in level_groups:
+                    level_groups[level] = []
+                level_groups[level].append(dependency_map[topic_name])
+            
+            return {
+                "subject": "science",
+                "levels": level_groups,
+                "topics": list(dependency_map.values())
+            }
+            
+        elif subject.lower() == "social":
+            dependencies = db.query(SocialDependency).all()
+            # 依存関係を構築
+            dependency_map = {}
+            for dep in dependencies:
+                prereqs = dep.prerequisite_topics.split(';') if dep.prerequisite_topics else []
+                deps = dep.next_topics.split(';') if dep.next_topics else []
+                dependency_map[dep.topic_name] = {
+                    "id": dep.id,
+                    "name": dep.topic_name,
+                    "prerequisites": prereqs,
+                    "dependencies": deps,
+                    "subject": "social",
+                    "domain": dep.domain
+                }
+            
+            # レベルを計算
+            levels = {}
+            for dep in dependencies:
+                if not dep.prerequisite_topics:
+                    levels[dep.topic_name] = 0
+                else:
+                    prereqs = dep.prerequisite_topics.split(';')
+                    max_level = 0
+                    for prereq in prereqs:
+                        if prereq.strip() in levels:
+                            max_level = max(max_level, levels[prereq.strip()])
+                    levels[dep.topic_name] = max_level + 1
+            
+            # レベル別にグループ化
+            level_groups = {}
+            for topic_name, level in levels.items():
+                if level not in level_groups:
+                    level_groups[level] = []
+                level_groups[level].append(dependency_map[topic_name])
+            
+            return {
+                "subject": "social",
+                "levels": level_groups,
+                "topics": list(dependency_map.values())
+            }
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
