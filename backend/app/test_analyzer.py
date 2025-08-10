@@ -23,6 +23,13 @@ except ImportError:
     print("Warning: PyPDF2 not available. PDF processing will be disabled.")
 
 try:
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
+    print("Warning: pdfplumber not available. Enhanced PDF processing will be disabled.")
+
+try:
     import pytesseract
     TESSERACT_AVAILABLE = True
 except ImportError:
@@ -46,19 +53,107 @@ class TestResultAnalyzer:
             self.client = None
     
     def extract_text_from_pdf(self, file_path: str) -> str:
-        """PDFからテキストを抽出"""
-        if not PDF2_AVAILABLE:
-            raise Exception("PDF処理が利用できません（PyPDF2がインストールされていません）")
+        """PDFからテキストを抽出（日本語対応強化版）"""
+        if not PDF2_AVAILABLE and not PDFPLUMBER_AVAILABLE:
+            raise Exception("PDF処理が利用できません（PyPDF2またはpdfplumberがインストールされていません）")
+        
+        # まずpdfplumberで試行（日本語に強い）
+        if PDFPLUMBER_AVAILABLE:
+            try:
+                print("pdfplumberを使用してPDFテキスト抽出を試行...")
+                text = ""
+                with pdfplumber.open(file_path) as pdf:
+                    for page in pdf.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text + "\n"
+                
+                if text.strip():
+                    print(f"pdfplumberでテキスト抽出成功: {len(text)} 文字")
+                    return text
+                else:
+                    print("pdfplumberでテキストが抽出できませんでした")
+            except Exception as e:
+                print(f"pdfplumberでの抽出エラー: {e}")
+        
+        # pdfplumberが失敗した場合はPyPDF2で試行
+        if PDF2_AVAILABLE:
+            try:
+                print("PyPDF2を使用してPDFテキスト抽出を試行...")
+                text = ""
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    for page in pdf_reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text + "\n"
+                
+                if text.strip():
+                    print(f"PyPDF2でテキスト抽出成功: {len(text)} 文字")
+                    return text
+                else:
+                    print("PyPDF2でテキストが抽出できませんでした")
+            except Exception as e:
+                print(f"PyPDF2での抽出エラー: {e}")
+        
+        # 両方とも失敗した場合はOCRを試行
+        print("テキスト抽出に失敗したため、OCR処理を試行します...")
+        return self._extract_text_with_ocr(file_path)
+    
+    def _extract_text_with_ocr(self, file_path: str) -> str:
+        """OCRを使用してPDFからテキストを抽出"""
+        if not PIL_AVAILABLE or not TESSERACT_AVAILABLE:
+            raise Exception("OCR処理が利用できません（Pillowまたはpytesseractがインストールされていません）")
         
         try:
+            print("OCR処理開始...")
+            # PDFを画像に変換してOCR処理
+            from pdf2image import convert_from_path
+            
+            # PDFの各ページを画像に変換
+            images = convert_from_path(file_path, dpi=300)
+            
+            text = ""
+            for i, image in enumerate(images):
+                print(f"ページ {i+1} のOCR処理中...")
+                page_text = pytesseract.image_to_string(image, lang='jpn+eng')
+                text += page_text + "\n"
+            
+            print(f"OCR処理完了: {len(text)} 文字")
+            return text
+            
+        except ImportError:
+            print("pdf2imageが利用できません。代替方法を試行します...")
+            # pdf2imageが利用できない場合は、PyPDF2で画像として抽出を試行
+            return self._extract_text_from_pdf_images(file_path)
+        except Exception as e:
+            print(f"OCR処理エラー: {e}")
+            raise Exception(f"OCR処理エラー: {str(e)}")
+    
+    def _extract_text_from_pdf_images(self, file_path: str) -> str:
+        """PyPDF2を使用してPDFから画像としてテキストを抽出"""
+        try:
+            print("PyPDF2で画像としてテキスト抽出を試行...")
             text = ""
             with open(file_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
+                for page_num, page in enumerate(pdf_reader.pages):
+                    # 画像リソースを抽出
+                    if '/XObject' in page['/Resources']:
+                        xObject = page['/Resources']['/XObject'].get_object()
+                        for obj in xObject:
+                            if xObject[obj]['/Subtype'] == '/Image':
+                                print(f"ページ {page_num+1} で画像を発見")
+                    
+                    # テキスト抽出を再試行
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            
             return text
         except Exception as e:
-            raise Exception(f"PDFテキスト抽出エラー: {str(e)}")
+            print(f"画像抽出エラー: {e}")
+            return "PDFファイルの内容を読み取れませんでした。"
     
     def extract_text_from_image(self, file_path: str) -> str:
         """画像からテキストを抽出（OCR）"""
@@ -94,6 +189,33 @@ class TestResultAnalyzer:
         except Exception as e:
             print(f"PDF Base64エンコードエラー: {e}")
             return ""
+    
+    def _clean_extracted_text(self, text: str) -> str:
+        """抽出されたテキストをクリーンアップ"""
+        if not text:
+            return text
+        
+        # 文字化けした文字を除去
+        cleaned_text = ""
+        for char in text:
+            # 制御文字を除去
+            if ord(char) < 32 and char not in '\n\r\t':
+                continue
+            # 文字化けした文字を除去（0xFFFDは置換文字）
+            if char == '\ufffd':
+                continue
+            cleaned_text += char
+        
+        # 連続する空白を単一の空白に置換
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
+        
+        # 行頭行末の空白を除去
+        cleaned_text = re.sub(r'^\s+|\s+$', '', cleaned_text, flags=re.MULTILINE)
+        
+        # 空行を除去
+        cleaned_text = re.sub(r'\n\s*\n', '\n', cleaned_text)
+        
+        return cleaned_text.strip()
     
     def parse_test_result(self, text: str) -> Dict:
         """テキストからテスト結果を解析"""
@@ -216,7 +338,7 @@ class TestResultAnalyzer:
             prompt = self._create_analysis_prompt(test_result)
             
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。テスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                     {"role": "user", "content": prompt}
@@ -249,8 +371,17 @@ class TestResultAnalyzer:
             try:
                 print(f"PDFテキスト抽出開始: {pdf_file_path}")
                 text_content = self.extract_text_from_pdf(pdf_file_path)
+                
+                # テキストの品質を改善
+                text_content = self._clean_extracted_text(text_content)
+                
                 print(f"PDFから抽出されたテキスト: {text_content[:200]}...")
                 print(f"抽出されたテキストの長さ: {len(text_content)} 文字")
+                
+                # 日本語文字が含まれているかチェック
+                japanese_chars = re.findall(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]', text_content)
+                print(f"日本語文字数: {len(japanese_chars)}")
+                
             except Exception as e:
                 print(f"PDFテキスト抽出エラー: {e}")
                 text_content = "PDFファイルの内容を読み取れませんでした。"
@@ -263,7 +394,7 @@ class TestResultAnalyzer:
                     print(f"PDFファイル読み込み完了: {len(pdf_content)} bytes")
                     
                     response = self.client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-5",
                         messages=[
                             {
                                 "role": "system", 
@@ -303,7 +434,7 @@ class TestResultAnalyzer:
                 prompt = self._create_pdf_analysis_prompt_with_content(text_content)
                 
                 response = self.client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-5",
                     messages=[
                         {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                         {"role": "user", "content": prompt}
@@ -494,8 +625,20 @@ class TestResultAnalyzer:
 
     def _create_pdf_analysis_prompt_with_content(self, text_content: str) -> str:
         """PDF内容を含む分析用のプロンプトを作成"""
+        
+        # 文字化けの検出
+        garbled_chars = re.findall(r'[\ufffd\u0000-\u001f\u007f-\u009f]', text_content)
+        text_quality_note = ""
+        if garbled_chars:
+            text_quality_note = f"""
+**注意**: 抽出されたテキストに文字化けや制御文字が含まれています（{len(garbled_chars)}文字）。
+可能な限り内容を推測して分析を行ってください。
+"""
+        
         return f"""
 以下のPDFファイルから抽出されたテスト結果の内容を分析してください：
+
+{text_quality_note}
 
 ## PDFファイルの内容
 ```

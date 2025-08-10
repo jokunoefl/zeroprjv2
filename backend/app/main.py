@@ -565,7 +565,7 @@ async def upload_test_result(
                 except Exception as parse_error:
                     raise HTTPException(status_code=400, detail=f"テスト結果の解析エラー: {str(parse_error)}")
                 
-                # AI分析を実行（GPT-4o使用）
+                # AI分析を実行（GPT-5使用）
                 try:
                     analysis_result = analyzer.analyze_weaknesses_with_ai(parsed_result)
                 except Exception as analysis_error:
