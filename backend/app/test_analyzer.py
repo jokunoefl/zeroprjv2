@@ -338,7 +338,7 @@ class TestResultAnalyzer:
             prompt = self._create_analysis_prompt(test_result)
             
             response = self.client.chat.completions.create(
-                model="gpt-5-2025-08-07",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。テスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                     {"role": "user", "content": prompt}
@@ -391,7 +391,7 @@ class TestResultAnalyzer:
                     # ChatGPTへの送信
                     print("ChatGPTへの送信開始...")
                     response = self.client.chat.completions.create(
-                        model="gpt-5-2025-08-07",
+                        model="gpt-4o",
                         messages=[
                             {
                                 "role": "system", 
@@ -442,7 +442,7 @@ class TestResultAnalyzer:
                     prompt = self._create_pdf_analysis_prompt_with_content(text_content)
                     
                     response = self.client.chat.completions.create(
-                        model="gpt-5-2025-08-07",
+                        model="gpt-4o",
                         messages=[
                             {"role": "system", "content": "あなたは教育心理学と学習科学に精通した教育コンサルタントです。PDFファイルのテスト結果を詳細に分析し、個別化された学習戦略を提案します。具体的で実行可能なアドバイスを提供してください。"},
                             {"role": "user", "content": prompt}
