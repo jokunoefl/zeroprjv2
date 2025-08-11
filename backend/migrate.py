@@ -60,9 +60,10 @@ def remove_next_topics_columns():
                 
                 # データを復元
                 for dep in math_deps:
+                    # 算数の依存関係にdomainフィールドを追加（デフォルトは"数と計算"）
                     conn.execute(text(
-                        "INSERT INTO math_dependencies (id, topic_name, prerequisite_topic, topic_id) VALUES (:id, :topic_name, :prerequisite_topic, :topic_id)"
-                    ), {"id": dep[0], "topic_name": dep[1], "prerequisite_topic": dep[2], "topic_id": dep[3]})
+                        "INSERT INTO math_dependencies (id, domain, topic_name, prerequisite_topic, topic_id) VALUES (:id, :domain, :topic_name, :prerequisite_topic, :topic_id)"
+                    ), {"id": dep[0], "domain": "数と計算", "topic_name": dep[1], "prerequisite_topic": dep[2], "topic_id": dep[3]})
                 
                 for dep in science_deps:
                     conn.execute(text(

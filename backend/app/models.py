@@ -84,6 +84,7 @@ class SocialTopic(Base):
 class MathDependency(Base):
     __tablename__ = "math_dependencies"
     id: Mapped[int] = Column(Integer, primary_key=True)
+    domain: Mapped[str] = Column(String(32), nullable=False)  # 数と計算/図形/量と測定/数量関係/総合
     topic_name: Mapped[str] = Column(String(255), nullable=False)  # 単元名
     prerequisite_topic: Mapped[Optional[str]] = Column(String(255), nullable=True)  # 前提単元（NULL=前提なし）
     topic_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("math_topics.id"), nullable=True)  # math_topicsとの紐付け

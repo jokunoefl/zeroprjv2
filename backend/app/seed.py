@@ -46,15 +46,9 @@ def seed_basic(db: Session):
 
 def seed_math_topics(db: Session):
     # Check if table exists and has data
-    try:
-        # First check if table exists
-        db.execute("SELECT 1 FROM math_topics LIMIT 1")
-        # If we get here, table exists, so check if it has data
-        if db.query(MathTopic).count() > 0:
-            return
-    except Exception:
-        # Table doesn't exist yet, continue with seeding
-        pass
+    if db.query(MathTopic).count() > 0:
+        print("Math topics already seeded, skipping...")
+        return
     rows = [
         (1, "整数の範囲", "基礎"),
         (2, "小数", "基礎"),
@@ -163,15 +157,9 @@ def seed_math_topics(db: Session):
 
 def seed_math_dependencies(db: Session):
     # Check if table exists and has data
-    try:
-        # First check if table exists
-        db.execute("SELECT 1 FROM math_dependencies LIMIT 1")
-        # If we get here, table exists, so check if it has data
-        if db.query(MathDependency).count() > 0:
-            return
-    except Exception:
-        # Table doesn't exist yet, continue with seeding
-        pass
+    if db.query(MathDependency).count() > 0:
+        print("Math dependencies already seeded, skipping...")
+        return
     dependencies = [
         (1, "整数の範囲", None),
         (2, "小数", "整数の範囲"),
@@ -279,8 +267,19 @@ def seed_math_dependencies(db: Session):
         math_topic = db.query(MathTopic).filter(MathTopic.name == topic_name).first()
         topic_id = math_topic.id if math_topic else None
         
+        # 算数の依存関係にdomainフィールドを追加
+        # 単元名に基づいてdomainを決定
+        domain = "数と計算"  # デフォルト
+        if any(keyword in topic_name for keyword in ["割合", "速さ", "比", "百分率", "歩合", "旅人算", "通過算", "追いつき算", "時計算", "流水算", "ダイヤグラム"]):
+            domain = "数量関係"
+        elif any(keyword in topic_name for keyword in ["図形", "三角形", "四角形", "多角形", "円", "角度", "垂直", "平行", "作図", "合同", "相似", "面積", "立体", "体積", "表面積", "切断", "回転体", "見取り図", "展開図", "影", "投影図", "断面図"]):
+            domain = "図形"
+        elif any(keyword in topic_name for keyword in ["長さ", "面積", "体積", "重さ", "時間", "角度", "測定"]):
+            domain = "量と測定"
+        
         db.add(MathDependency(
             id=i,
+            domain=domain,
             topic_name=topic_name,
             prerequisite_topic=prerequisite,
             topic_id=topic_id
