@@ -996,7 +996,7 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                     {
                         "id": dep.id,
                         "name": dep.topic_name,
-                        "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
+                        "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
                         "dependencies": [],
                         "subject": "math",
                         "domain": getattr(dep, 'domain', '未分類')  # domainフィールドが存在しない場合の対応
