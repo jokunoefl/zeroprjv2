@@ -1483,4 +1483,63 @@ def delete_domain(domain_id: int, db: Session = Depends(get_db)):
         print(f"Error deleting domain: {e}")
         return {"error": f"Failed to delete domain: {str(e)}"}
 
+@app.get("/prerequisites/{subject}")
+def get_prerequisites_options(subject: str, db: Session = Depends(get_db)):
+    """指定された科目の前提条件一覧を取得（ドロップダウン用）"""
+    from sqlalchemy import text
+    try:
+        if subject.lower() == "math":
+            # math_dependenciesテーブルからtopic_name一覧を取得
+            result = db.execute(text('SELECT id, topic_name FROM math_dependencies ORDER BY topic_name'))
+            prerequisites = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
+            return {"subject": "math", "prerequisites": prerequisites}
+        elif subject.lower() == "science":
+            # science_dependenciesテーブルからtopic_name一覧を取得
+            result = db.execute(text('SELECT id, topic_name FROM science_dependencies ORDER BY topic_name'))
+            prerequisites = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
+            return {"subject": "science", "prerequisites": prerequisites}
+        elif subject.lower() == "social":
+            # social_dependenciesテーブルからtopic_name一覧を取得
+            result = db.execute(text('SELECT id, topic_name FROM social_dependencies ORDER BY topic_name'))
+            prerequisites = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
+            return {"subject": "social", "prerequisites": prerequisites}
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+    except Exception as e:
+        print(f"Error getting prerequisites for {subject}: {e}")
+        return {"subject": subject, "prerequisites": []}
+
+class PrerequisitesUpdateRequest(BaseModel):
+    prerequisites: List[str]
+
+@app.put("/dependencies/{subject}/{topic_id}/prerequisites")
+def update_topic_prerequisites(subject: str, topic_id: int, prerequisites_update: PrerequisitesUpdateRequest, db: Session = Depends(get_db)):
+    """指定された単元の前提条件を更新"""
+    from sqlalchemy import text
+    try:
+        if subject.lower() == "math":
+            # math_dependenciesテーブルの前提条件を更新
+            prerequisites_str = ';'.join(prerequisites_update.prerequisites) if prerequisites_update.prerequisites else None
+            db.execute(text('UPDATE math_dependencies SET prerequisite_topics = :prerequisites WHERE id = :topic_id'), 
+                      {"prerequisites": prerequisites_str, "topic_id": topic_id})
+        elif subject.lower() == "science":
+            # science_dependenciesテーブルの前提条件を更新
+            prerequisites_str = ';'.join(prerequisites_update.prerequisites) if prerequisites_update.prerequisites else None
+            db.execute(text('UPDATE science_dependencies SET prerequisite_topics = :prerequisites WHERE id = :topic_id'), 
+                      {"prerequisites": prerequisites_str, "topic_id": topic_id})
+        elif subject.lower() == "social":
+            # social_dependenciesテーブルの前提条件を更新
+            prerequisites_str = ';'.join(prerequisites_update.prerequisites) if prerequisites_update.prerequisites else None
+            db.execute(text('UPDATE social_dependencies SET prerequisite_topics = :prerequisites WHERE id = :topic_id'), 
+                      {"prerequisites": prerequisites_str, "topic_id": topic_id})
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+        
+        db.commit()
+        return {"message": "Prerequisites updated successfully"}
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating prerequisites: {e}")
+        return {"error": f"Failed to update prerequisites: {str(e)}"}
+
 

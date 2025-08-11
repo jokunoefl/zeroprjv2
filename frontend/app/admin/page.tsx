@@ -50,6 +50,8 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
   const [domainOptions, setDomainOptions] = useState<{[key: string]: string[]}>(DOMAIN_OPTIONS);
+  const [prerequisitesOptions, setPrerequisitesOptions] = useState<{[key: string]: Array<{id: number, name: string}>}>({});
+  const [editingPrerequisitesId, setEditingPrerequisitesId] = useState<string | null>(null);
 
   // APIベースURLを取得
   const getApiBase = useCallback(() => {
@@ -78,6 +80,25 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Error fetching domains:', error);
+    }
+  }, [getApiBase]);
+
+  // データベースから前提条件一覧を取得
+  const fetchPrerequisites = useCallback(async (subject: string) => {
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/prerequisites/${subject}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPrerequisitesOptions(prev => ({
+          ...prev,
+          [subject]: data.prerequisites || []
+        }));
+      } else {
+        console.error('Failed to fetch prerequisites:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching prerequisites:', error);
     }
   }, [getApiBase]);
 
@@ -159,7 +180,8 @@ export default function AdminPage() {
   useEffect(() => {
     fetchTopics(selectedSubject);
     fetchDomains(selectedSubject);
-  }, [selectedSubject, fetchTopics, fetchDomains]);
+    fetchPrerequisites(selectedSubject);
+  }, [selectedSubject, fetchTopics, fetchDomains, fetchPrerequisites]);
 
   // 科目別のトピックをフィルタリング
   const filteredTopics = topics.filter(topic => 
@@ -249,6 +271,41 @@ export default function AdminPage() {
   // ドメイン編集をキャンセル
   const handleCancelDomainEdit = () => {
     setEditingDomainId(null);
+  };
+
+  const handleStartPrerequisitesEdit = (topicId: string) => {
+    setEditingPrerequisitesId(topicId);
+  };
+
+  const handleSavePrerequisitesEdit = async (topicId: string, newPrerequisites: string[]) => {
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/dependencies/${selectedSubject}/${topicId}/prerequisites`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prerequisites: newPrerequisites })
+      });
+      
+      if (response.ok) {
+        // ローカルの状態を更新
+        setTopics(prev => prev.map(topic => 
+          topic.id === topicId 
+            ? { ...topic, prerequisites: newPrerequisites }
+            : topic
+        ));
+        setEditingPrerequisitesId(null);
+      } else {
+        console.error('Failed to update prerequisites:', response.status, response.statusText);
+        alert('前提条件の更新に失敗しました');
+      }
+    } catch (error) {
+      console.error('Error updating prerequisites:', error);
+      alert('前提条件の更新に失敗しました');
+    }
+  };
+
+  const handleCancelPrerequisitesEdit = () => {
+    setEditingPrerequisitesId(null);
   };
 
   // 編集を保存
@@ -357,6 +414,108 @@ export default function AdminPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // 前提条件表示・編集コンポーネント
+  const PrerequisitesEditor = ({ topic }: { topic: Topic }) => {
+    const [tempPrerequisites, setTempPrerequisites] = useState<string[]>(topic.prerequisites || []);
+
+    if (editingPrerequisitesId === topic.id) {
+      const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          handleSavePrerequisitesEdit(topic.id, tempPrerequisites);
+        } else if (e.key === 'Escape') {
+          setTempPrerequisites(topic.prerequisites || []);
+          handleCancelPrerequisitesEdit();
+        }
+      };
+
+      const handleAddPrerequisite = () => {
+        setTempPrerequisites([...tempPrerequisites, '']);
+      };
+
+      const handleRemovePrerequisite = (index: number) => {
+        setTempPrerequisites(tempPrerequisites.filter((_, i) => i !== index));
+      };
+
+      const handlePrerequisiteChange = (index: number, value: string) => {
+        const newPrerequisites = [...tempPrerequisites];
+        newPrerequisites[index] = value;
+        setTempPrerequisites(newPrerequisites);
+      };
+
+      return (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-700">前提条件:</div>
+          {tempPrerequisites.map((prereq, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <select
+                value={prereq}
+                onChange={(e) => handlePrerequisiteChange(index, e.target.value)}
+                className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50"
+              >
+                <option value="">前提条件を選択...</option>
+                {prerequisitesOptions[selectedSubject]?.map(option => (
+                  <option key={option.id} value={option.name}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => handleRemovePrerequisite(index)}
+                className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 transition-colors"
+                title="削除"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAddPrerequisite}
+              className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200 transition-colors"
+              title="前提条件を追加"
+            >
+              + 追加
+            </button>
+            <button
+              onClick={() => handleSavePrerequisitesEdit(topic.id, tempPrerequisites)}
+              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition-colors"
+              title="保存 (Enter)"
+            >
+              ✓ 保存
+            </button>
+            <button
+              onClick={() => {
+                setTempPrerequisites(topic.prerequisites || []);
+                handleCancelPrerequisitesEdit();
+              }}
+              className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 transition-colors"
+              title="キャンセル (Esc)"
+            >
+              ✕ キャンセル
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors border border-transparent hover:border-blue-200"
+        onClick={() => {
+          setTempPrerequisites(topic.prerequisites || []);
+          handleStartPrerequisitesEdit(topic.id);
+        }}
+        title="クリックして前提条件を編集"
+      >
+        {topic.prerequisites && topic.prerequisites.length > 0 
+          ? topic.prerequisites.join(', ')
+          : "前提条件なし"
+        }
+        <span className="ml-1 text-xs text-gray-400">✏️</span>
+      </div>
+    );
   };
 
   // ドメイン表示・編集コンポーネント
@@ -585,69 +744,7 @@ export default function AdminPage() {
                     {/* 前提条件 */}
                     <div className="mb-3">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">前提条件</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {topic.prerequisites.length === 0 ? (
-                          <span className="text-gray-500 text-sm">前提条件なし</span>
-                        ) : (
-                          topic.prerequisites.map(prereqId => (
-                            <span
-                              key={prereqId}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-sm"
-                            >
-                              {getTopicName(prereqId)}
-                              <button
-                                onClick={() => handleRemovePrerequisite(topic.id, prereqId)}
-                                className="text-green-600 hover:text-green-800"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 後続単元 */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">後続単元</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {topic.dependencies.length === 0 ? (
-                          <span className="text-gray-500 text-sm">後続単元なし</span>
-                        ) : (
-                          topic.dependencies.map(depId => (
-                            <span
-                              key={depId}
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm"
-                            >
-                              {getTopicName(depId)}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 前提条件を追加 */}
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">前提条件を追加</h4>
-                      <select
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleAddPrerequisite(topic.id, e.target.value);
-                            e.target.value = "";
-                          }
-                        }}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm"
-                        defaultValue=""
-                      >
-                        <option value="">前提条件を選択...</option>
-                        {filteredTopics
-                          .filter(t => t.id !== topic.id && !topic.prerequisites.includes(t.id))
-                          .map(t => (
-                            <option key={t.id} value={t.id}>
-                              {t.name}
-                            </option>
-                          ))}
-                      </select>
+                      <PrerequisitesEditor topic={topic} />
                     </div>
                   </div>
                 ))}
