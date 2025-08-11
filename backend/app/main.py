@@ -1045,10 +1045,10 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                 for row in dependencies_data:
                     id_val, topic_name, prerequisite_topics, topic_id = row
                     
-                    # ドメインを取得（カラムが存在するかチェック）
+                    # ドメインを取得（大文字のDomainカラムを使用）
                     domain = '未分類'
                     try:
-                        domain_result = db.execute(text("SELECT Domain FROM math_dependencies WHERE id = :id"), {"id": id_val})
+                        domain_result = db.execute(text('SELECT "Domain" FROM math_dependencies WHERE id = :id'), {"id": id_val})
                         domain_row = domain_result.fetchone()
                         if domain_row:
                             domain = domain_row[0] or '未分類'
