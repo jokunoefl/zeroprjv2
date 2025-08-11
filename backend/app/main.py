@@ -141,6 +141,37 @@ class TestResultDetailResponse(BaseModel):
     weakness_analysis: Optional[str]
     improvement_advice: Optional[str]
 
+class DomainUpdateRequest(BaseModel):
+    domain: str
+
+@app.put("/dependencies/{subject}/{topic_id}/domain")
+def update_topic_domain(subject: str, topic_id: int, domain_update: DomainUpdateRequest, db: Session = Depends(get_db)):
+    """指定された単元のドメインを更新"""
+    try:
+        if subject.lower() == "math":
+            dependency = db.query(MathDependency).filter(MathDependency.id == topic_id).first()
+            if not dependency:
+                raise HTTPException(status_code=404, detail="Topic not found")
+            dependency.domain = domain_update.domain
+        elif subject.lower() == "science":
+            dependency = db.query(ScienceDependency).filter(ScienceDependency.id == topic_id).first()
+            if not dependency:
+                raise HTTPException(status_code=404, detail="Topic not found")
+            dependency.domain = domain_update.domain
+        elif subject.lower() == "social":
+            dependency = db.query(SocialDependency).filter(SocialDependency.id == topic_id).first()
+            if not dependency:
+                raise HTTPException(status_code=404, detail="Topic not found")
+            dependency.domain = domain_update.domain
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+        
+        db.commit()
+        return {"message": "Domain updated successfully", "topic_id": topic_id, "domain": domain_update.domain}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 def health():
     """ヘルスチェックエンドポイント - データベース接続も確認"""

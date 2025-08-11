@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
 // 単元データの型定義
@@ -14,6 +14,16 @@ interface Topic {
   attempts?: number;
 }
 
+// APIレスポンスの型定義
+interface ApiResponse {
+  id: number;
+  name: string;
+  prerequisites: string[];
+  dependencies: string[];
+  subject: string;
+  domain?: string;
+}
+
 // 科目の定義
 const SUBJECTS = [
   { id: "math", name: "算数" },
@@ -22,59 +32,64 @@ const SUBJECTS = [
   { id: "social", name: "社会" }
 ];
 
-// サンプルデータ
-const sampleTopics: Topic[] = [
-  // 算数
-  { id: "math-1", name: "整数の範囲", subject: "math", prerequisites: [], dependencies: ["math-2"] },
-  { id: "math-2", name: "小数", subject: "math", prerequisites: ["math-1"], dependencies: ["math-3"] },
-  { id: "math-3", name: "分数", subject: "math", prerequisites: ["math-2"], dependencies: ["math-4"] },
-  { id: "math-4", name: "約分と通分", subject: "math", prerequisites: ["math-3"], dependencies: ["math-5"] },
-  { id: "math-5", name: "分数と小数の混合計算", subject: "math", prerequisites: ["math-4"], dependencies: ["math-6"] },
-  { id: "math-6", name: "四則混合算", subject: "math", prerequisites: ["math-5"], dependencies: ["math-7"] },
-  { id: "math-7", name: "累乗と指数", subject: "math", prerequisites: ["math-6"], dependencies: ["math-8"] },
-  { id: "math-8", name: "正負の数", subject: "math", prerequisites: ["math-7"], dependencies: ["math-9"] },
-  { id: "math-9", name: "整数の性質（倍数・約数）", subject: "math", prerequisites: ["math-8"], dependencies: ["math-10"] },
-  { id: "math-10", name: "最小公倍数・最大公約数", subject: "math", prerequisites: ["math-9"], dependencies: ["math-15"] },
-  { id: "math-15", name: "割合", subject: "math", prerequisites: ["math-10"], dependencies: ["math-16"] },
-  { id: "math-16", name: "百分率・歩合", subject: "math", prerequisites: ["math-15"], dependencies: ["math-17"] },
-  { id: "math-17", name: "割合文章題", subject: "math", prerequisites: ["math-16"], dependencies: ["math-25"] },
-  { id: "math-25", name: "速さの基礎", subject: "math", prerequisites: ["math-17"], dependencies: ["math-26"] },
-  { id: "math-26", name: "旅人算", subject: "math", prerequisites: ["math-25"], dependencies: ["math-35"] },
-  { id: "math-35", name: "平面図形の基礎", subject: "math", prerequisites: ["math-26"], dependencies: ["math-43"] },
-  { id: "math-43", name: "合同と相似", subject: "math", prerequisites: ["math-35"], dependencies: ["math-44"] },
-  { id: "math-44", name: "相似比と面積比", subject: "math", prerequisites: ["math-43"], dependencies: [] },
-
-  // 理解（国語）
-  { id: "japanese-1", name: "漢字の読み（音読み・訓読み）", subject: "japanese", prerequisites: [], dependencies: ["japanese-2"] },
-  { id: "japanese-2", name: "漢字の書き取り", subject: "japanese", prerequisites: ["japanese-1"], dependencies: ["japanese-3"] },
-  { id: "japanese-3", name: "同音異義語・同訓異字", subject: "japanese", prerequisites: ["japanese-2"], dependencies: ["japanese-4"] },
-  { id: "japanese-4", name: "類義語・対義語", subject: "japanese", prerequisites: ["japanese-3"], dependencies: ["japanese-5"] },
-  { id: "japanese-5", name: "慣用句・ことわざ", subject: "japanese", prerequisites: ["japanese-4"], dependencies: ["japanese-6"] },
-  { id: "japanese-6", name: "四字熟語", subject: "japanese", prerequisites: ["japanese-5"], dependencies: ["japanese-11"] },
-  { id: "japanese-11", name: "品詞の識別", subject: "japanese", prerequisites: ["japanese-6"], dependencies: ["japanese-12"] },
-  { id: "japanese-12", name: "文の成分（主語・述語・修飾語）", subject: "japanese", prerequisites: ["japanese-11"], dependencies: ["japanese-13"] },
-  { id: "japanese-13", name: "敬語の使い方", subject: "japanese", prerequisites: ["japanese-12"], dependencies: ["japanese-14"] },
-  { id: "japanese-14", name: "接続詞・指示語", subject: "japanese", prerequisites: ["japanese-13"], dependencies: ["japanese-15"] },
-  { id: "japanese-15", name: "助詞・助動詞", subject: "japanese", prerequisites: ["japanese-14"], dependencies: ["japanese-21"] },
-  { id: "japanese-21", name: "指示語の内容", subject: "japanese", prerequisites: ["japanese-15"], dependencies: ["japanese-22"] },
-  { id: "japanese-22", name: "接続語の働き", subject: "japanese", prerequisites: ["japanese-21"], dependencies: ["japanese-23"] },
-  { id: "japanese-23", name: "段落の要約", subject: "japanese", prerequisites: ["japanese-22"], dependencies: ["japanese-24"] },
-  { id: "japanese-24", name: "文章の要旨", subject: "japanese", prerequisites: ["japanese-23"], dependencies: ["japanese-25"] },
-  { id: "japanese-25", name: "筆者の主張", subject: "japanese", prerequisites: ["japanese-24"], dependencies: ["japanese-26"] },
-  { id: "japanese-26", name: "比喩・表現技法", subject: "japanese", prerequisites: ["japanese-25"], dependencies: ["japanese-31"] },
-  { id: "japanese-31", name: "文章の構成", subject: "japanese", prerequisites: ["japanese-26"], dependencies: ["japanese-32"] },
-  { id: "japanese-32", name: "段落の書き方", subject: "japanese", prerequisites: ["japanese-31"], dependencies: ["japanese-33"] },
-  { id: "japanese-33", name: "接続語の使い方", subject: "japanese", prerequisites: ["japanese-32"], dependencies: ["japanese-34"] },
-  { id: "japanese-34", name: "敬語の使い分け", subject: "japanese", prerequisites: ["japanese-33"], dependencies: ["japanese-35"] },
-  { id: "japanese-35", name: "文章の推敲", subject: "japanese", prerequisites: ["japanese-34"], dependencies: [] },
-];
+// 科目別のdomainオプション
+const DOMAIN_OPTIONS = {
+  math: ["数と計算", "数量関係", "図形", "量と測定"],
+  japanese: ["漢字・語彙", "文法", "読解", "作文"],
+  science: ["物理", "化学", "生物", "地学"],
+  social: ["地理", "歴史", "公民"]
+};
 
 export default function AdminPage() {
-  const [topics, setTopics] = useState<Topic[]>(sampleTopics);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>("math");
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
+
+  // APIベースURLを取得
+  const getApiBase = () => {
+    if (typeof window !== 'undefined') {
+      return (window as any).API_BASE || 'http://localhost:8000';
+    }
+    return 'http://localhost:8000';
+  };
+
+  // データベースから単元データを取得
+  const fetchTopics = async (subject: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${getApiBase()}/dependencies/${subject}`);
+      if (response.ok) {
+        const data: ApiResponse[] = await response.json();
+        const convertedTopics: Topic[] = data.map(item => ({
+          id: item.id.toString(),
+          name: item.name,
+          subject: item.subject,
+          domain: item.domain,
+          prerequisites: item.prerequisites || [],
+          dependencies: item.dependencies || []
+        }));
+        setTopics(convertedTopics);
+      } else {
+        console.error('Failed to fetch topics:', response.statusText);
+        setTopics([]);
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      setTopics([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 科目が変更されたときにデータを再取得
+  useEffect(() => {
+    fetchTopics(selectedSubject);
+  }, [selectedSubject]);
 
   // 科目別のトピックをフィルタリング
   const filteredTopics = topics.filter(topic => 
@@ -85,9 +100,10 @@ export default function AdminPage() {
   // 新しいトピックを追加
   const handleAddTopic = () => {
     const newTopic: Topic = {
-      id: `${selectedSubject}-${Date.now()}`,
+      id: `new-${Date.now()}`,
       name: "",
       subject: selectedSubject,
+      domain: DOMAIN_OPTIONS[selectedSubject as keyof typeof DOMAIN_OPTIONS]?.[0] || "",
       prerequisites: [],
       dependencies: []
     };
@@ -102,33 +118,100 @@ export default function AdminPage() {
   };
 
   // トピックを削除
-  const handleDeleteTopic = (topicId: string) => {
+  const handleDeleteTopic = async (topicId: string) => {
     if (confirm("この単元を削除しますか？依存関係も削除されます。")) {
-      const updatedTopics = topics.filter(t => t.id !== topicId);
-      // 依存関係からも削除
-      const cleanedTopics = updatedTopics.map(topic => ({
-        ...topic,
-        prerequisites: topic.prerequisites.filter(p => p !== topicId),
-        dependencies: topic.dependencies.filter(d => d !== topicId)
-      }));
-      setTopics(cleanedTopics);
+      try {
+        // 実際のAPIでは削除エンドポイントを呼び出す
+        const updatedTopics = topics.filter(t => t.id !== topicId);
+        // 依存関係からも削除
+        const cleanedTopics = updatedTopics.map(topic => ({
+          ...topic,
+          prerequisites: topic.prerequisites.filter(p => p !== topicId),
+          dependencies: topic.dependencies.filter(d => d !== topicId)
+        }));
+        setTopics(cleanedTopics);
+        
+        // TODO: APIで削除処理を実装
+        console.log('Delete topic:', topicId);
+      } catch (error) {
+        console.error('Error deleting topic:', error);
+        alert('削除に失敗しました');
+      }
     }
   };
 
+  // ドメイン編集を開始
+  const handleStartDomainEdit = (topicId: string) => {
+    setEditingDomainId(topicId);
+  };
+
+  // ドメイン編集を保存
+  const handleSaveDomainEdit = async (topicId: string, newDomain: string) => {
+    try {
+      // バックエンドAPIを呼び出してドメインを更新
+      const response = await fetch(`${getApiBase()}/dependencies/${selectedSubject}/${topicId}/domain`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ domain: newDomain })
+      });
+
+      if (response.ok) {
+        // 成功した場合、ローカル状態を更新
+        const updatedTopics = topics.map(topic => 
+          topic.id === topicId 
+            ? { ...topic, domain: newDomain }
+            : topic
+        );
+        setTopics(updatedTopics);
+        setEditingDomainId(null);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'ドメインの更新に失敗しました');
+      }
+    } catch (error) {
+      console.error('Error updating domain:', error);
+      alert('ドメインの更新に失敗しました: ' + (error as Error).message);
+    }
+  };
+
+  // ドメイン編集をキャンセル
+  const handleCancelDomainEdit = () => {
+    setEditingDomainId(null);
+  };
+
   // 編集を保存
-  const handleSaveTopic = () => {
+  const handleSaveTopic = async () => {
     if (!editingTopic || !editingTopic.name.trim()) {
       alert("単元名を入力してください");
       return;
     }
 
-    if (isAddingNew) {
-      setTopics([...topics, editingTopic]);
-    } else {
-      setTopics(topics.map(t => t.id === editingTopic.id ? editingTopic : t));
+    try {
+      if (isAddingNew) {
+        // 新しいトピックを追加
+        const newTopic = {
+          ...editingTopic,
+          id: `new-${Date.now()}` // 一時的なID
+        };
+        setTopics([...topics, newTopic]);
+        
+        // TODO: APIで新規作成処理を実装
+        console.log('Create new topic:', newTopic);
+      } else {
+        // 既存のトピックを更新
+        setTopics(topics.map(t => t.id === editingTopic.id ? editingTopic : t));
+        
+        // TODO: APIで更新処理を実装
+        console.log('Update topic:', editingTopic);
+      }
+      setEditingTopic(null);
+      setIsAddingNew(false);
+    } catch (error) {
+      console.error('Error saving topic:', error);
+      alert('保存に失敗しました');
     }
-    setEditingTopic(null);
-    setIsAddingNew(false);
   };
 
   // 編集をキャンセル
@@ -181,6 +264,95 @@ export default function AdminPage() {
   const getTopicName = (topicId: string) => {
     const topic = topics.find(t => t.id === topicId);
     return topic ? topic.name : topicId;
+  };
+
+  // 変更を保存
+  const handleSaveChanges = async () => {
+    try {
+      setSaving(true);
+      // TODO: APIで一括保存処理を実装
+      console.log("保存するデータ:", topics);
+      
+      // 実際のAPI呼び出しをここに実装
+      // const response = await fetch(`${getApiBase()}/dependencies/${selectedSubject}`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(topics)
+      // });
+      
+      alert("データを保存しました");
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      alert('保存に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ドメイン表示・編集コンポーネント
+  const DomainEditor = ({ topic }: { topic: Topic }) => {
+    const [tempDomain, setTempDomain] = useState(topic.domain || "");
+
+    if (editingDomainId === topic.id) {
+      const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          handleSaveDomainEdit(topic.id, tempDomain);
+        } else if (e.key === 'Escape') {
+          setTempDomain(topic.domain || "");
+          handleCancelDomainEdit();
+        }
+      };
+
+      return (
+        <div className="flex items-center gap-2">
+          <select
+            value={tempDomain}
+            onChange={(e) => setTempDomain(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50"
+            autoFocus
+          >
+            <option value="">ドメインを選択...</option>
+            {DOMAIN_OPTIONS[selectedSubject as keyof typeof DOMAIN_OPTIONS]?.map(domain => (
+              <option key={domain} value={domain}>
+                {domain}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => handleSaveDomainEdit(topic.id, tempDomain)}
+            className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200 transition-colors"
+            title="保存 (Enter)"
+          >
+            ✓
+          </button>
+          <button
+            onClick={() => {
+              setTempDomain(topic.domain || "");
+              handleCancelDomainEdit();
+            }}
+            className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 transition-colors"
+            title="キャンセル (Esc)"
+          >
+            ✕
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className="text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors border border-transparent hover:border-blue-200"
+        onClick={() => {
+          setTempDomain(topic.domain || "");
+          handleStartDomainEdit(topic.id);
+        }}
+        title="クリックしてドメインを編集"
+      >
+        {topic.domain || "ドメイン未設定"}
+        <span className="ml-1 text-xs text-gray-400">✏️</span>
+      </div>
+    );
   };
 
   return (
@@ -256,7 +428,7 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    単元名
+                    単元名 *
                   </label>
                   <input
                     type="text"
@@ -268,15 +440,20 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    分野（オプション）
+                    ドメイン
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={editingTopic.domain || ""}
                     onChange={(e) => setEditingTopic({ ...editingTopic, domain: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="分野を入力（例：物理、化学、生物）"
-                  />
+                  >
+                    <option value="">ドメインを選択...</option>
+                    {DOMAIN_OPTIONS[selectedSubject as keyof typeof DOMAIN_OPTIONS]?.map(domain => (
+                      <option key={domain} value={domain}>
+                        {domain}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex gap-2 pt-4">
                   <button
@@ -303,20 +480,23 @@ export default function AdminPage() {
             <h2 className="text-xl font-semibold mb-4">
               {SUBJECTS.find(s => s.id === selectedSubject)?.name}の単元一覧
             </h2>
-            {filteredTopics.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">データを読み込み中...</p>
+              </div>
+            ) : filteredTopics.length === 0 ? (
               <p className="text-gray-500 text-center py-8">単元が見つかりません</p>
             ) : (
               <div className="space-y-4">
                 {filteredTopics.map(topic => (
                   <div key={topic.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{topic.name}</h3>
-                        {topic.domain && (
-                          <p className="text-sm text-gray-500">分野: {topic.domain}</p>
-                        )}
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 mb-1">{topic.name}</h3>
+                        <DomainEditor topic={topic} />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 ml-4">
                         <button
                           onClick={() => handleEditTopic(topic)}
                           className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
@@ -409,14 +589,15 @@ export default function AdminPage() {
         {/* 保存ボタン */}
         <div className="mt-6 text-center">
           <button
-            onClick={() => {
-              // ここでAPIにデータを保存
-              console.log("保存するデータ:", topics);
-              alert("データを保存しました（コンソールを確認してください）");
-            }}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            onClick={handleSaveChanges}
+            disabled={saving}
+            className={`px-6 py-3 rounded-lg transition-colors font-medium ${
+              saving 
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
           >
-            変更を保存
+            {saving ? '保存中...' : '変更を保存'}
           </button>
         </div>
       </div>
