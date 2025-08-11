@@ -1225,6 +1225,32 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/domains/{subject}")
+def get_domains(subject: str, db: Session = Depends(get_db)):
+    """指定された科目のドメイン一覧を取得"""
+    from sqlalchemy import text
+    try:
+        if subject.lower() == "math":
+            # math_dependenciesテーブルからドメイン一覧を取得
+            result = db.execute(text('SELECT DISTINCT "Domain" FROM math_dependencies WHERE "Domain" IS NOT NULL ORDER BY "Domain"'))
+            domains = [row[0] for row in result.fetchall()]
+            return {"subject": "math", "domains": domains}
+        elif subject.lower() == "science":
+            # science_dependenciesテーブルからドメイン一覧を取得
+            result = db.execute(text('SELECT DISTINCT "Domain" FROM science_dependencies WHERE "Domain" IS NOT NULL ORDER BY "Domain"'))
+            domains = [row[0] for row in result.fetchall()]
+            return {"subject": "science", "domains": domains}
+        elif subject.lower() == "social":
+            # social_dependenciesテーブルからドメイン一覧を取得
+            result = db.execute(text('SELECT DISTINCT "Domain" FROM social_dependencies WHERE "Domain" IS NOT NULL ORDER BY "Domain"'))
+            domains = [row[0] for row in result.fetchall()]
+            return {"subject": "social", "domains": domains}
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+    except Exception as e:
+        print(f"Error getting domains for {subject}: {e}")
+        return {"subject": subject, "domains": []}
+
 @app.get("/migrate")
 def run_migration(db: Session = Depends(get_db)):
     """本番環境でマイグレーションを実行するエンドポイント"""

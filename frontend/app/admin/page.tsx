@@ -32,12 +32,12 @@ const SUBJECTS = [
   { id: "social", name: "社会" }
 ];
 
-// 科目別のdomainオプション
+// 科目別のdomainオプション（動的に取得するため初期値は空）
 const DOMAIN_OPTIONS = {
-  math: ["数と計算", "数量関係", "図形", "量と測定"],
-  japanese: ["漢字・語彙", "文法", "読解", "作文"],
-  science: ["物理", "化学", "生物", "地学"],
-  social: ["地理", "歴史", "公民"]
+  math: [],
+  japanese: [],
+  science: [],
+  social: []
 };
 
 export default function AdminPage() {
@@ -49,6 +49,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
+  const [domainOptions, setDomainOptions] = useState<{[key: string]: string[]}>(DOMAIN_OPTIONS);
 
   // APIベースURLを取得
   const getApiBase = useCallback(() => {
@@ -60,6 +61,25 @@ export default function AdminPage() {
     }
     return process.env.NEXT_PUBLIC_API_BASE || 'https://zeroprjv2.onrender.com';
   }, []);
+
+  // データベースからドメイン一覧を取得
+  const fetchDomains = useCallback(async (subject: string) => {
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/domains/${subject}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDomainOptions(prev => ({
+          ...prev,
+          [subject]: data.domains || []
+        }));
+      } else {
+        console.error('Failed to fetch domains:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching domains:', error);
+    }
+  }, [getApiBase]);
 
   // データベースから単元データを取得
   const fetchTopics = useCallback(async (subject: string) => {
@@ -138,7 +158,8 @@ export default function AdminPage() {
   // 科目が変更されたときにデータを再取得
   useEffect(() => {
     fetchTopics(selectedSubject);
-  }, [selectedSubject, fetchTopics]);
+    fetchDomains(selectedSubject);
+  }, [selectedSubject, fetchTopics, fetchDomains]);
 
   // 科目別のトピックをフィルタリング
   const filteredTopics = topics.filter(topic => 
@@ -362,7 +383,7 @@ export default function AdminPage() {
             autoFocus
           >
             <option value="">ドメインを選択...</option>
-            {DOMAIN_OPTIONS[selectedSubject as keyof typeof DOMAIN_OPTIONS]?.map(domain => (
+            {domainOptions[selectedSubject]?.map(domain => (
               <option key={domain} value={domain}>
                 {domain}
               </option>
