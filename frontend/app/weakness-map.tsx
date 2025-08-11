@@ -19,49 +19,6 @@ interface WindowWithAPI extends Window {
   AUTH_TOKEN?: string;
 }
 
-async function apiGet(path: string): Promise<ApiResponse>{
-  const windowWithAPI = window as WindowWithAPI;
-  if(!windowWithAPI.API_BASE){
-    const m = path.match(/\/questions\/(\d+)/);
-    if(m){
-      const id = Number(m[1]);
-      if (id % 2) {
-        // 算数：割合
-        return {
-          id,
-          subject: "算数",
-          topic: "割合（取得）",
-          text: `定価2000円の商品を20%引きで販売したときの販売価格は？（ID:${id}）`,
-          hint: "販売価格 = 定価 × 0.8",
-          correct: "1600",
-          unit: "円"
-        };
-      } else {
-        // 国語：漢字
-        return {
-          id,
-          subject: "国語",
-          topic: "漢字の読み書き",
-          text: `次の漢字の読みをひらがなで書きなさい：\n『情報』（ID:${id}）`,
-          hint: "コンピュータで扱う○○",
-          correct: "じょうほう",
-          unit: ""
-        };
-      }
-    }
-    return { ok: true };
-  }
-  const API_BASE = windowWithAPI.API_BASE;
-  const AUTH_TOKEN = windowWithAPI.AUTH_TOKEN;
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'GET',
-    headers: {
-      ...(AUTH_TOKEN ? { 'Authorization': `Bearer ${AUTH_TOKEN}` } : { 'Authorization': 'Bearer demo-jwt' })
-    }
-  });
-  return await res.json();
-}
-
 // ====== Weakness Map（依存マップ + 詳細ペイン） ======
 type WeakNode = { id: string; name: string; mastery: number; attempts: number; recent_decay?: number; domain?: string; };
 type WeakEdge = { from: string; to: string };
@@ -76,8 +33,12 @@ interface DependencyData {
   domain?: string;
 }
 
+// Domain別データの型定義
+type DomainNodes = Record<string, WeakNode[]>;
+type DomainEdges = Record<string, WeakEdge[]>;
+
 // 算数のサンプルデータ（domain別）
-const mathNodesByDomain = {
+const mathNodesByDomain: DomainNodes = {
   "数と計算": [
     { id: "1", name: "整数の範囲", mastery: 85, attempts: 45, domain: "数と計算" },
     { id: "2", name: "小数", mastery: 78, attempts: 38, domain: "数と計算" },
@@ -110,7 +71,7 @@ const mathNodesByDomain = {
 };
 
 // 算数の依存関係（domain別）
-const mathEdgesByDomain = {
+const mathEdgesByDomain: DomainEdges = {
   "数と計算": [
     { from: "1", to: "2" },
     { from: "2", to: "3" },
@@ -139,7 +100,7 @@ const mathEdgesByDomain = {
 };
 
 // 国語のサンプルデータ（domain別）
-const japaneseNodesByDomain = {
+const japaneseNodesByDomain: DomainNodes = {
   "漢字・語彙": [
     { id: "1", name: "漢字の読み（音読み・訓読み）", mastery: 80, attempts: 45, domain: "漢字・語彙" },
     { id: "2", name: "漢字の書き取り", mastery: 75, attempts: 42, domain: "漢字・語彙" },
@@ -173,7 +134,7 @@ const japaneseNodesByDomain = {
 };
 
 // 国語の依存関係（domain別）
-const japaneseEdgesByDomain = {
+const japaneseEdgesByDomain: DomainEdges = {
   "漢字・語彙": [
     { from: "1", to: "2" },
     { from: "2", to: "3" },
@@ -203,7 +164,7 @@ const japaneseEdgesByDomain = {
 };
 
 // 理科のサンプルデータ（domain別）
-const scienceNodesByDomain = {
+const scienceNodesByDomain: DomainNodes = {
   "物理": [
     { id: "1", name: "光の性質（反射・屈折）", mastery: 75, attempts: 30, domain: "物理" },
     { id: "2", name: "光の作図（鏡・レンズ）", mastery: 68, attempts: 25, domain: "物理" },
@@ -239,7 +200,7 @@ const scienceNodesByDomain = {
   ]
 };
 
-const scienceEdgesByDomain = {
+const scienceEdgesByDomain: DomainEdges = {
   "物理": [
     { from: "1", to: "2" },
     { from: "2", to: "3" },
@@ -272,7 +233,7 @@ const scienceEdgesByDomain = {
 };
 
 // 社会のサンプルデータ（domain別）
-const socialNodesByDomain = {
+const socialNodesByDomain: DomainNodes = {
   "地理": [
     { id: "1", name: "日本の都道府県と県庁所在地", mastery: 80, attempts: 40, domain: "地理" },
     { id: "2", name: "日本の地方区分（8地方区分）", mastery: 75, attempts: 35, domain: "地理" },
@@ -311,7 +272,7 @@ const socialNodesByDomain = {
   ]
 };
 
-const socialEdgesByDomain = {
+const socialEdgesByDomain: DomainEdges = {
   "地理": [
     { from: "1", to: "2" },
     { from: "2", to: "3" },
@@ -497,7 +458,7 @@ function WeaknessDetail({ node, onStart, subject = "math" }:{ node: WeakNode | n
     <div className="space-y-3">
       <div className="text-sm"><span className="font-semibold">選択：</span>{node.name}</div>
       <div className="flex flex-wrap gap-2">
-        {chips.map((c,i)=> <span key={i} className="px-2 py-1 rounded-xl bg-gray-100 text-gray-700 text-xs">ミス：{c}</span>)}
+        {chips.map((c)=> <span key={c} className="px-2 py-1 rounded-xl bg-gray-100 text-gray-700 text-xs">ミス：{c}</span>)}
       </div>
       <div className="text-xs text-muted-foreground">代表の1問（モック）</div>
       <div className="rounded-2xl border p-3 space-y-2">
@@ -564,24 +525,24 @@ export default function App(){
       switch (currentSubject) {
         case "japanese":
           return { 
-            nodes: (japaneseNodesByDomain as any)[currentDomain] || japaneseNodesByDomain["漢字・語彙"], 
-            edges: (japaneseEdgesByDomain as any)[currentDomain] || japaneseEdgesByDomain["漢字・語彙"] 
+            nodes: japaneseNodesByDomain[currentDomain] || japaneseNodesByDomain["漢字・語彙"], 
+            edges: japaneseEdgesByDomain[currentDomain] || japaneseEdgesByDomain["漢字・語彙"] 
           };
         case "science":
           return { 
-            nodes: (scienceNodesByDomain as any)[currentDomain] || scienceNodesByDomain["物理"], 
-            edges: (scienceEdgesByDomain as any)[currentDomain] || scienceEdgesByDomain["物理"] 
+            nodes: scienceNodesByDomain[currentDomain] || scienceNodesByDomain["物理"], 
+            edges: scienceEdgesByDomain[currentDomain] || scienceEdgesByDomain["物理"] 
           };
         case "social":
           return { 
-            nodes: (socialNodesByDomain as any)[currentDomain] || socialNodesByDomain["地理"], 
-            edges: (socialEdgesByDomain as any)[currentDomain] || socialEdgesByDomain["地理"] 
+            nodes: socialNodesByDomain[currentDomain] || socialNodesByDomain["地理"], 
+            edges: socialEdgesByDomain[currentDomain] || socialEdgesByDomain["地理"] 
           };
         case "math":
         default:
           return { 
-            nodes: (mathNodesByDomain as any)[currentDomain] || mathNodesByDomain["数と計算"], 
-            edges: (mathEdgesByDomain as any)[currentDomain] || mathEdgesByDomain["数と計算"] 
+            nodes: mathNodesByDomain[currentDomain] || mathNodesByDomain["数と計算"], 
+            edges: mathEdgesByDomain[currentDomain] || mathEdgesByDomain["数と計算"] 
           };
       }
     }
@@ -607,7 +568,7 @@ export default function App(){
     });
 
     return { nodes, edges };
-  }, [dependencyData, currentSubject]);
+  }, [dependencyData, currentSubject, currentDomain]);
 
   const getSubjectName = (subject: string) => {
     switch (subject) {
@@ -832,7 +793,7 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
     });
 
     return { nodes, edges };
-  }, [dependencyData, data]);
+  }, [dependencyData, data, subject]);
 
   const [selected, setSelected] = useState<WeakNode|null>(null);
   const [lastPack, setLastPack] = useState<string|undefined>(undefined);
