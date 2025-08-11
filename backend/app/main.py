@@ -1252,4 +1252,25 @@ def list_all_tables(db: Session = Depends(get_db)):
     except Exception as e:
         return {"error": f"Failed to list tables: {str(e)}"}
 
+@app.get("/check-math-dependencies")
+def check_math_dependencies(db: Session = Depends(get_db)):
+    """math_dependenciesテーブルの内容を確認するエンドポイント"""
+    from sqlalchemy import text
+    try:
+        # テーブルの行数を確認
+        count_result = db.execute(text("SELECT COUNT(*) FROM math_dependencies"))
+        count = count_result.scalar()
+        
+        # 最初の5行を取得
+        sample_result = db.execute(text("SELECT id, topic_name, domain FROM math_dependencies LIMIT 5"))
+        sample_data = [{"id": row[0], "topic_name": row[1], "domain": row[2]} for row in sample_result.fetchall()]
+        
+        return {
+            "table_exists": True,
+            "row_count": count,
+            "sample_data": sample_data
+        }
+    except Exception as e:
+        return {"error": f"Failed to check math_dependencies: {str(e)}"}
+
 
