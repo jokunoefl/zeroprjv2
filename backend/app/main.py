@@ -1357,4 +1357,45 @@ def check_math_dependencies_simple(db: Session = Depends(get_db)):
     except Exception as e:
         return {"error": f"Failed to check math_dependencies: {str(e)}"}
 
+@app.get("/debug-math-dependencies")
+def debug_math_dependencies(db: Session = Depends(get_db)):
+    """math_dependenciesテーブルの詳細なデバッグ情報を取得するエンドポイント"""
+    from sqlalchemy import text
+    try:
+        # テーブルの行数を確認
+        count_result = db.execute(text("SELECT COUNT(*) FROM math_dependencies"))
+        count = count_result.scalar()
+        
+        # テーブルの構造を確認
+        columns_result = db.execute(text("""
+            SELECT column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns 
+            WHERE table_name = 'math_dependencies' 
+            ORDER BY ordinal_position
+        """))
+        columns = [{"name": row[0], "type": row[1], "nullable": row[2], "default": row[3]} for row in columns_result.fetchall()]
+        
+        # 最初の10行を取得
+        sample_result = db.execute(text("SELECT * FROM math_dependencies LIMIT 10"))
+        sample_data = []
+        for row in sample_result.fetchall():
+            row_dict = {}
+            for i, col_name in enumerate([col["name"] for col in columns]):
+                row_dict[col_name] = row[i]
+            sample_data.append(row_dict)
+        
+        # ドメインの分布を確認
+        domain_result = db.execute(text("SELECT Domain, COUNT(*) FROM math_dependencies GROUP BY Domain"))
+        domain_distribution = [{"domain": row[0], "count": row[1]} for row in domain_result.fetchall()]
+        
+        return {
+            "table_exists": True,
+            "row_count": count,
+            "columns": columns,
+            "sample_data": sample_data,
+            "domain_distribution": domain_distribution
+        }
+    except Exception as e:
+        return {"error": f"Failed to debug math_dependencies: {str(e)}"}
+
 
