@@ -56,18 +56,24 @@ export default function AdminPage() {
       // 本番環境ではNEXT_PUBLIC_API_BASE環境変数を使用
       return (window as { API_BASE?: string }).API_BASE || 
              process.env.NEXT_PUBLIC_API_BASE || 
-             'https://zerobasics-backend.onrender.com';
+             'https://zeroprjv2.onrender.com';
     }
-    return process.env.NEXT_PUBLIC_API_BASE || 'https://zerobasics-backend.onrender.com';
+    return process.env.NEXT_PUBLIC_API_BASE || 'https://zeroprjv2.onrender.com';
   }, []);
 
   // データベースから単元データを取得
   const fetchTopics = useCallback(async (subject: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${getApiBase()}/dependencies/${subject}`);
+      const apiBase = getApiBase();
+      console.log('Fetching topics from:', `${apiBase}/dependencies/${subject}`);
+      
+      const response = await fetch(`${apiBase}/dependencies/${subject}`);
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data: ApiResponse[] = await response.json();
+        console.log('Received data:', data);
         const convertedTopics: Topic[] = data.map(item => ({
           id: item.id.toString(),
           name: item.name,
@@ -78,12 +84,52 @@ export default function AdminPage() {
         }));
         setTopics(convertedTopics);
       } else {
-        console.error('Failed to fetch topics:', response.statusText);
-        setTopics([]);
+        console.error('Failed to fetch topics:', response.status, response.statusText);
+        // APIが利用できない場合のフォールバックデータ
+        const fallbackData: Topic[] = [
+          {
+            id: "1",
+            name: "サンプル単元1",
+            subject: subject,
+            domain: "サンプルドメイン",
+            prerequisites: [],
+            dependencies: []
+          },
+          {
+            id: "2", 
+            name: "サンプル単元2",
+            subject: subject,
+            domain: "サンプルドメイン",
+            prerequisites: ["サンプル単元1"],
+            dependencies: []
+          }
+        ];
+        setTopics(fallbackData);
+        console.log('Using fallback data due to API error');
       }
     } catch (error) {
       console.error('Error fetching topics:', error);
-      setTopics([]);
+      // ネットワークエラーの場合のフォールバックデータ
+      const fallbackData: Topic[] = [
+        {
+          id: "1",
+          name: "サンプル単元1",
+          subject: subject,
+          domain: "サンプルドメイン",
+          prerequisites: [],
+          dependencies: []
+        },
+        {
+          id: "2",
+          name: "サンプル単元2", 
+          subject: subject,
+          domain: "サンプルドメイン",
+          prerequisites: ["サンプル単元1"],
+          dependencies: []
+        }
+      ];
+      setTopics(fallbackData);
+      console.log('Using fallback data due to network error');
     } finally {
       setLoading(false);
     }

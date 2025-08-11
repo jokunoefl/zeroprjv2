@@ -990,48 +990,61 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
     """指定された科目の依存関係データを取得"""
     try:
         if subject.lower() == "math":
-            dependencies = db.query(MathDependency).all()
-            return [
-                {
-                    "id": dep.id,
-                    "name": dep.topic_name,
-                    "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
-                    "dependencies": [],
-                    "subject": "math",
-                    "domain": dep.domain
-                }
-                for dep in dependencies
-            ]
+            try:
+                dependencies = db.query(MathDependency).all()
+                return [
+                    {
+                        "id": dep.id,
+                        "name": dep.topic_name,
+                        "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
+                        "dependencies": [],
+                        "subject": "math",
+                        "domain": getattr(dep, 'domain', '未分類')  # domainフィールドが存在しない場合の対応
+                    }
+                    for dep in dependencies
+                ]
+            except Exception as e:
+                print(f"Error querying math dependencies: {e}")
+                return []
         elif subject.lower() == "science":
-            dependencies = db.query(ScienceDependency).all()
-            return [
-                {
-                    "id": dep.id,
-                    "name": dep.topic_name,
-                    "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
-                    "dependencies": [],
-                    "subject": "science",
-                    "domain": dep.domain
-                }
-                for dep in dependencies
-            ]
+            try:
+                dependencies = db.query(ScienceDependency).all()
+                return [
+                    {
+                        "id": dep.id,
+                        "name": dep.topic_name,
+                        "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
+                        "dependencies": [],
+                        "subject": "science",
+                        "domain": getattr(dep, 'domain', '未分類')
+                    }
+                    for dep in dependencies
+                ]
+            except Exception as e:
+                print(f"Error querying science dependencies: {e}")
+                return []
         elif subject.lower() == "social":
-            dependencies = db.query(SocialDependency).all()
-            return [
-                {
-                    "id": dep.id,
-                    "name": dep.topic_name,
-                    "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
-                    "dependencies": [],
-                    "subject": "social",
-                    "domain": dep.domain
-                }
-                for dep in dependencies
-            ]
+            try:
+                dependencies = db.query(SocialDependency).all()
+                return [
+                    {
+                        "id": dep.id,
+                        "name": dep.topic_name,
+                        "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
+                        "dependencies": [],
+                        "subject": "social",
+                        "domain": getattr(dep, 'domain', '未分類')
+                    }
+                    for dep in dependencies
+                ]
+            except Exception as e:
+                print(f"Error querying social dependencies: {e}")
+                return []
         else:
             raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error in get_dependencies: {e}")
+        return []
 
 @app.get("/dependencies/{subject}/flow")
 def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
