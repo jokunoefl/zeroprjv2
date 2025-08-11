@@ -1261,13 +1261,32 @@ def check_math_dependencies(db: Session = Depends(get_db)):
         count_result = db.execute(text("SELECT COUNT(*) FROM math_dependencies"))
         count = count_result.scalar()
         
-        # 最初の5行を取得
-        sample_result = db.execute(text("SELECT id, topic_name, domain FROM math_dependencies LIMIT 5"))
-        sample_data = [{"id": row[0], "topic_name": row[1], "domain": row[2]} for row in sample_result.fetchall()]
+        # テーブルの構造を確認
+        columns_result = db.execute(text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'math_dependencies' 
+            ORDER BY ordinal_position
+        """))
+        columns = [{"name": row[0], "type": row[1]} for row in columns_result.fetchall()]
+        
+        # 最初の5行を取得（カラム名を動的に取得）
+        if columns:
+            column_names = [col["name"] for col in columns]
+            sample_result = db.execute(text(f"SELECT {', '.join(column_names)} FROM math_dependencies LIMIT 5"))
+            sample_data = []
+            for row in sample_result.fetchall():
+                row_dict = {}
+                for i, col_name in enumerate(column_names):
+                    row_dict[col_name] = row[i]
+                sample_data.append(row_dict)
+        else:
+            sample_data = []
         
         return {
             "table_exists": True,
             "row_count": count,
+            "columns": columns,
             "sample_data": sample_data
         }
     except Exception as e:
