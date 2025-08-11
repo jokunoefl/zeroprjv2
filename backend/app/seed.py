@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from .models import Question, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail
+from .models import Question, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail, DomainMaster
 import json
 from datetime import datetime, timedelta
 
@@ -791,5 +791,56 @@ def seed_social_topics(db: Session):
     for i, domain, name, diff in rows:
         db.add(SocialTopic(id=i, domain=domain, name=name, difficulty=diff))
     db.commit()
+
+def seed_domain_master(db: Session):
+    """ドメインマスターテーブルにデータをシード"""
+    # Check if table exists and has data
+    try:
+        if db.query(DomainMaster).count() > 0:
+            print("Domain master already seeded, skipping...")
+            return
+    except Exception:
+        # Table doesn't exist yet, continue with seeding
+        pass
+    
+    # 算数のドメイン
+    math_domains = [
+        (1, "math", "数と計算", 1),
+        (2, "math", "図形", 2),
+        (3, "math", "割合・比・比例", 3),
+        (4, "math", "速さ・時間", 4),
+        (5, "math", "データ・統計", 5),
+        (6, "math", "規則性・場合の数", 6),
+        (7, "math", "その他", 7),
+    ]
+    
+    # 理科のドメイン
+    science_domains = [
+        (8, "science", "物理", 1),
+        (9, "science", "化学", 2),
+        (10, "science", "生物", 3),
+        (11, "science", "地学", 4),
+    ]
+    
+    # 社会のドメイン
+    social_domains = [
+        (12, "social", "地理", 1),
+        (13, "social", "歴史", 2),
+        (14, "social", "公民", 3),
+    ]
+    
+    # すべてのドメインを追加
+    all_domains = math_domains + science_domains + social_domains
+    
+    for id_val, subject, domain, display_order in all_domains:
+        db.add(DomainMaster(
+            id=id_val,
+            subject=subject,
+            domain=domain,
+            display_order=display_order
+        ))
+    
+    db.commit()
+    print(f"Seeded {len(all_domains)} domain master records")
 
 

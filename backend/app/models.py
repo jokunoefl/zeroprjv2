@@ -154,4 +154,13 @@ class TestResultDetail(Base):
 # SocialTopicにリレーションを追加
 SocialTopic.dependencies = relationship("SocialDependency", back_populates="social_topic")
 
+class DomainMaster(Base):
+    __tablename__ = "domain_master"
+    id: Mapped[int] = Column(Integer, primary_key=True, index=True)
+    subject: Mapped[str] = Column(String(32), nullable=False)  # math, science, social
+    domain: Mapped[str] = Column(String(255), nullable=False)  # ドメイン名
+    display_order: Mapped[Optional[int]] = Column(Integer, nullable=True)  # 表示順序
+    created_at: Mapped[DateTime] = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 

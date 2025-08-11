@@ -7,8 +7,8 @@ import os
 import tempfile
 import shutil
 from .db import SessionLocal, engine, Base
-from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail
-from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies, seed_social_dependencies
+from .models import Question, Attempt, Mastery, MathTopic, ScienceTopic, SocialTopic, MathDependency, ScienceDependency, SocialDependency, TestResult, TestResultDetail, DomainMaster
+from .seed import seed_basic, seed_math_topics, seed_science_topics, seed_social_topics, seed_math_dependencies, seed_science_dependencies, seed_social_dependencies, seed_domain_master
 from .test_analyzer import TestResultAnalyzer
 import json
 import random
@@ -277,6 +277,8 @@ def init_database_simple(db: Session = Depends(get_db)):
         try:
             seed_basic(db)
             print("Basic seeding completed")
+            seed_domain_master(db)
+            print("Domain master seeded")
             seed_math_topics(db)
             print("Math topics seeded")
             seed_science_topics(db)
@@ -363,9 +365,16 @@ def check_tables(db: Session = Depends(get_db)):
     try:
         # Check social_dependencies table
         db.execute(text("SELECT 1 FROM social_dependencies LIMIT 1"))
-        tables["social_dependencies"] = "missing"
+        tables["social_dependencies"] = "exists"
     except Exception:
         tables["social_dependencies"] = "missing"
+    
+    try:
+        # Check domain_master table
+        db.execute(text("SELECT 1 FROM domain_master LIMIT 1"))
+        tables["domain_master"] = "exists"
+    except Exception:
+        tables["domain_master"] = "missing"
     
     try:
         # Check math_topics table
@@ -1227,26 +1236,15 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
 
 @app.get("/domains/{subject}")
 def get_domains(subject: str, db: Session = Depends(get_db)):
-    """指定された科目のドメイン一覧を取得"""
-    from sqlalchemy import text
+    """指定された科目のドメイン一覧を取得（ドメインマスターテーブルから）"""
     try:
-        if subject.lower() == "math":
-            # math_dependenciesテーブルからドメイン一覧を取得
-            result = db.execute(text('SELECT DISTINCT "Domain" FROM math_dependencies WHERE "Domain" IS NOT NULL ORDER BY "Domain"'))
-            domains = [row[0] for row in result.fetchall()]
-            return {"subject": "math", "domains": domains}
-        elif subject.lower() == "science":
-            # science_dependenciesテーブルからドメイン一覧を取得
-            result = db.execute(text('SELECT DISTINCT "Domain" FROM science_dependencies WHERE "Domain" IS NOT NULL ORDER BY "Domain"'))
-            domains = [row[0] for row in result.fetchall()]
-            return {"subject": "science", "domains": domains}
-        elif subject.lower() == "social":
-            # social_dependenciesテーブルからドメイン一覧を取得
-            result = db.execute(text('SELECT DISTINCT "Domain" FROM social_dependencies WHERE "Domain" IS NOT NULL ORDER BY "Domain"'))
-            domains = [row[0] for row in result.fetchall()]
-            return {"subject": "social", "domains": domains}
-        else:
-            raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
+        # ドメインマスターテーブルからドメイン一覧を取得
+        domains = db.query(DomainMaster).filter(
+            DomainMaster.subject == subject.lower()
+        ).order_by(DomainMaster.display_order, DomainMaster.domain).all()
+        
+        domain_list = [domain.domain for domain in domains]
+        return {"subject": subject, "domains": domain_list}
     except Exception as e:
         print(f"Error getting domains for {subject}: {e}")
         return {"subject": subject, "domains": []}
@@ -1409,5 +1407,80 @@ def debug_math_dependencies(db: Session = Depends(get_db)):
         }
     except Exception as e:
         return {"error": f"Failed to debug math_dependencies: {str(e)}"}
+
+@app.get("/admin/domains")
+def get_all_domains(db: Session = Depends(get_db)):
+    """すべてのドメイン一覧を取得（管理者用）"""
+    try:
+        domains = db.query(DomainMaster).order_by(DomainMaster.subject, DomainMaster.display_order).all()
+        return {
+            "domains": [
+                {
+                    "id": domain.id,
+                    "subject": domain.subject,
+                    "domain": domain.domain,
+                    "display_order": domain.display_order,
+                    "created_at": domain.created_at,
+                    "updated_at": domain.updated_at
+                }
+                for domain in domains
+            ]
+        }
+    except Exception as e:
+        print(f"Error getting all domains: {e}")
+        return {"domains": []}
+
+@app.post("/admin/domains")
+def create_domain(domain_data: dict, db: Session = Depends(get_db)):
+    """新しいドメインを作成（管理者用）"""
+    try:
+        new_domain = DomainMaster(
+            subject=domain_data["subject"],
+            domain=domain_data["domain"],
+            display_order=domain_data.get("display_order", 999)
+        )
+        db.add(new_domain)
+        db.commit()
+        db.refresh(new_domain)
+        return {"message": "Domain created successfully", "domain": new_domain}
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating domain: {e}")
+        return {"error": f"Failed to create domain: {str(e)}"}
+
+@app.put("/admin/domains/{domain_id}")
+def update_domain(domain_id: int, domain_data: dict, db: Session = Depends(get_db)):
+    """ドメインを更新（管理者用）"""
+    try:
+        domain = db.query(DomainMaster).filter(DomainMaster.id == domain_id).first()
+        if not domain:
+            raise HTTPException(status_code=404, detail="Domain not found")
+        
+        domain.subject = domain_data.get("subject", domain.subject)
+        domain.domain = domain_data.get("domain", domain.domain)
+        domain.display_order = domain_data.get("display_order", domain.display_order)
+        
+        db.commit()
+        return {"message": "Domain updated successfully", "domain": domain}
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating domain: {e}")
+        return {"error": f"Failed to update domain: {str(e)}"}
+
+@app.delete("/admin/domains/{domain_id}")
+def delete_domain(domain_id: int, db: Session = Depends(get_db)):
+    """ドメインを削除（管理者用）"""
+    try:
+        domain = db.query(DomainMaster).filter(DomainMaster.id == domain_id).first()
+        if not domain:
+            raise HTTPException(status_code=404, detail="Domain not found")
+        
+        db.delete(domain)
+        db.commit()
+        return {"message": "Domain deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting domain: {e}")
+        return {"error": f"Failed to delete domain: {str(e)}"}
 
 
