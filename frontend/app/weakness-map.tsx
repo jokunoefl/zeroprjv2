@@ -37,276 +37,44 @@ interface DependencyData {
 type DomainNodes = Record<string, WeakNode[]>;
 type DomainEdges = Record<string, WeakEdge[]>;
 
-// 算数のサンプルデータ（domain別）
-const mathNodesByDomain: DomainNodes = {
+// サンプルデータ（フォールバック用）
+const fallbackNodesByDomain: DomainNodes = {
   "数と計算": [
     { id: "1", name: "整数の範囲", mastery: 85, attempts: 45, domain: "数と計算" },
     { id: "2", name: "小数", mastery: 78, attempts: 38, domain: "数と計算" },
     { id: "3", name: "分数", mastery: 72, attempts: 42, domain: "数と計算" },
-    { id: "4", name: "約分と通分", mastery: 68, attempts: 35, domain: "数と計算" },
-    { id: "5", name: "分数と小数の混合計算", mastery: 65, attempts: 28, domain: "数と計算" },
-    { id: "6", name: "四則混合算", mastery: 70, attempts: 40, domain: "数と計算" },
-    { id: "7", name: "累乗と指数", mastery: 58, attempts: 25, domain: "数と計算" },
-    { id: "8", name: "正負の数", mastery: 75, attempts: 32, domain: "数と計算" },
-    { id: "9", name: "整数の性質（倍数・約数）", mastery: 62, attempts: 30, domain: "数と計算" },
-    { id: "10", name: "最小公倍数・最大公約数", mastery: 55, attempts: 22, domain: "数と計算" },
   ],
   "数量関係": [
     { id: "15", name: "割合", mastery: 48, attempts: 35, domain: "数量関係" },
     { id: "16", name: "百分率・歩合", mastery: 52, attempts: 28, domain: "数量関係" },
-    { id: "17", name: "割合文章題", mastery: 45, attempts: 20, domain: "数量関係" },
-    { id: "25", name: "速さの基礎", mastery: 60, attempts: 25, domain: "数量関係" },
-    { id: "26", name: "旅人算", mastery: 42, attempts: 18, domain: "数量関係" },
   ],
   "図形": [
     { id: "35", name: "平面図形の基礎", mastery: 65, attempts: 30, domain: "図形" },
     { id: "43", name: "合同と相似", mastery: 55, attempts: 22, domain: "図形" },
-    { id: "44", name: "相似比と面積比", mastery: 48, attempts: 18, domain: "図形" },
   ],
   "量と測定": [
     { id: "50", name: "長さ・面積・体積", mastery: 70, attempts: 35, domain: "量と測定" },
     { id: "51", name: "重さ・時間", mastery: 65, attempts: 30, domain: "量と測定" },
-    { id: "52", name: "角度", mastery: 60, attempts: 25, domain: "量と測定" },
   ]
 };
 
-// 算数の依存関係（domain別）
-const mathEdgesByDomain: DomainEdges = {
+const fallbackEdgesByDomain: DomainEdges = {
   "数と計算": [
     { from: "1", to: "2" },
     { from: "2", to: "3" },
-    { from: "3", to: "4" },
-    { from: "4", to: "5" },
-    { from: "5", to: "6" },
-    { from: "6", to: "7" },
-    { from: "7", to: "8" },
-    { from: "8", to: "9" },
-    { from: "9", to: "10" },
   ],
   "数量関係": [
     { from: "15", to: "16" },
-    { from: "16", to: "17" },
-    { from: "17", to: "25" },
-    { from: "25", to: "26" },
   ],
   "図形": [
     { from: "35", to: "43" },
-    { from: "43", to: "44" },
   ],
   "量と測定": [
     { from: "50", to: "51" },
-    { from: "51", to: "52" },
   ]
 };
 
-// 国語のサンプルデータ（domain別）
-const japaneseNodesByDomain: DomainNodes = {
-  "漢字・語彙": [
-    { id: "1", name: "漢字の読み（音読み・訓読み）", mastery: 80, attempts: 45, domain: "漢字・語彙" },
-    { id: "2", name: "漢字の書き取り", mastery: 75, attempts: 42, domain: "漢字・語彙" },
-    { id: "3", name: "同音異義語・同訓異字", mastery: 72, attempts: 38, domain: "漢字・語彙" },
-    { id: "4", name: "類義語・対義語", mastery: 68, attempts: 35, domain: "漢字・語彙" },
-    { id: "5", name: "慣用句・ことわざ", mastery: 65, attempts: 32, domain: "漢字・語彙" },
-    { id: "6", name: "四字熟語", mastery: 62, attempts: 28, domain: "漢字・語彙" },
-  ],
-  "文法": [
-    { id: "11", name: "品詞の識別", mastery: 70, attempts: 40, domain: "文法" },
-    { id: "12", name: "文の成分（主語・述語・修飾語）", mastery: 68, attempts: 36, domain: "文法" },
-    { id: "13", name: "敬語の使い方", mastery: 65, attempts: 30, domain: "文法" },
-    { id: "14", name: "接続詞・指示語", mastery: 72, attempts: 34, domain: "文法" },
-    { id: "15", name: "助詞・助動詞", mastery: 58, attempts: 25, domain: "文法" },
-  ],
-  "読解": [
-    { id: "21", name: "指示語の内容", mastery: 75, attempts: 42, domain: "読解" },
-    { id: "22", name: "接続語の働き", mastery: 72, attempts: 38, domain: "読解" },
-    { id: "23", name: "段落の要約", mastery: 68, attempts: 35, domain: "読解" },
-    { id: "24", name: "文章の要旨", mastery: 65, attempts: 32, domain: "読解" },
-    { id: "25", name: "筆者の主張", mastery: 62, attempts: 28, domain: "読解" },
-    { id: "26", name: "比喩・表現技法", mastery: 58, attempts: 25, domain: "読解" },
-  ],
-  "作文": [
-    { id: "31", name: "文章の構成", mastery: 70, attempts: 36, domain: "作文" },
-    { id: "32", name: "段落の書き方", mastery: 68, attempts: 34, domain: "作文" },
-    { id: "33", name: "接続語の使い方", mastery: 65, attempts: 30, domain: "作文" },
-    { id: "34", name: "敬語の使い分け", mastery: 62, attempts: 28, domain: "作文" },
-    { id: "35", name: "文章の推敲", mastery: 55, attempts: 22, domain: "作文" },
-  ]
-};
 
-// 国語の依存関係（domain別）
-const japaneseEdgesByDomain: DomainEdges = {
-  "漢字・語彙": [
-    { from: "1", to: "2" },
-    { from: "2", to: "3" },
-    { from: "3", to: "4" },
-    { from: "4", to: "5" },
-    { from: "5", to: "6" },
-  ],
-  "文法": [
-    { from: "11", to: "12" },
-    { from: "12", to: "13" },
-    { from: "13", to: "14" },
-    { from: "14", to: "15" },
-  ],
-  "読解": [
-    { from: "21", to: "22" },
-    { from: "22", to: "23" },
-    { from: "23", to: "24" },
-    { from: "24", to: "25" },
-    { from: "25", to: "26" },
-  ],
-  "作文": [
-    { from: "31", to: "32" },
-    { from: "32", to: "33" },
-    { from: "33", to: "34" },
-    { from: "34", to: "35" },
-  ]
-};
-
-// 理科のサンプルデータ（domain別）
-const scienceNodesByDomain: DomainNodes = {
-  "物理": [
-    { id: "1", name: "光の性質（反射・屈折）", mastery: 75, attempts: 30, domain: "物理" },
-    { id: "2", name: "光の作図（鏡・レンズ）", mastery: 68, attempts: 25, domain: "物理" },
-    { id: "3", name: "音の性質（高さ・大きさ・波）", mastery: 72, attempts: 28, domain: "物理" },
-    { id: "4", name: "音の伝わり方（空気・水・金属）", mastery: 65, attempts: 22, domain: "物理" },
-    { id: "5", name: "電流と回路（直列・並列）", mastery: 58, attempts: 35, domain: "物理" },
-    { id: "6", name: "オームの法則と応用計算", mastery: 52, attempts: 30, domain: "物理" },
-    { id: "7", name: "電磁石の性質", mastery: 48, attempts: 20, domain: "物理" },
-    { id: "8", name: "電磁誘導と応用", mastery: 45, attempts: 18, domain: "物理" },
-    { id: "9", name: "力のはたらき（てこ・滑車）", mastery: 62, attempts: 25, domain: "物理" },
-    { id: "10", name: "力のつり合いとモーメント計算", mastery: 55, attempts: 22, domain: "物理" },
-  ],
-  "化学": [
-    { id: "21", name: "状態変化（融解・凝固・蒸発・沸騰・凝縮）", mastery: 70, attempts: 32, domain: "化学" },
-    { id: "22", name: "物質の分類（純物質・混合物）", mastery: 65, attempts: 28, domain: "化学" },
-    { id: "23", name: "気体の発生方法と性質", mastery: 58, attempts: 25, domain: "化学" },
-    { id: "24", name: "水溶液の性質（酸・アルカリ・中和）", mastery: 52, attempts: 30, domain: "化学" },
-    { id: "25", name: "中和計算", mastery: 48, attempts: 20, domain: "化学" },
-  ],
-  "生物": [
-    { id: "41", name: "植物の分類と特徴", mastery: 75, attempts: 35, domain: "生物" },
-    { id: "42", name: "光合成と呼吸", mastery: 68, attempts: 30, domain: "生物" },
-    { id: "43", name: "種子の発芽条件", mastery: 72, attempts: 25, domain: "生物" },
-    { id: "44", name: "花のつくりとはたらき", mastery: 65, attempts: 28, domain: "生物" },
-    { id: "45", name: "受粉と受精", mastery: 58, attempts: 22, domain: "生物" },
-  ],
-  "地学": [
-    { id: "61", name: "地層と化石", mastery: 70, attempts: 30, domain: "地学" },
-    { id: "62", name: "火山と火成岩", mastery: 65, attempts: 25, domain: "地学" },
-    { id: "63", name: "地震の仕組みと震度・マグニチュード", mastery: 62, attempts: 28, domain: "地学" },
-    { id: "64", name: "プレートテクトニクス", mastery: 55, attempts: 20, domain: "地学" },
-    { id: "65", name: "気象の観測（温度・湿度・気圧）", mastery: 68, attempts: 32, domain: "地学" },
-  ]
-};
-
-const scienceEdgesByDomain: DomainEdges = {
-  "物理": [
-    { from: "1", to: "2" },
-    { from: "2", to: "3" },
-    { from: "3", to: "4" },
-    { from: "4", to: "5" },
-    { from: "5", to: "6" },
-    { from: "6", to: "7" },
-    { from: "7", to: "8" },
-    { from: "8", to: "9" },
-    { from: "9", to: "10" },
-  ],
-  "化学": [
-    { from: "21", to: "22" },
-    { from: "22", to: "23" },
-    { from: "23", to: "24" },
-    { from: "24", to: "25" },
-  ],
-  "生物": [
-    { from: "41", to: "42" },
-    { from: "42", to: "43" },
-    { from: "43", to: "44" },
-    { from: "44", to: "45" },
-  ],
-  "地学": [
-    { from: "61", to: "62" },
-    { from: "62", to: "63" },
-    { from: "63", to: "64" },
-    { from: "64", to: "65" },
-  ]
-};
-
-// 社会のサンプルデータ（domain別）
-const socialNodesByDomain: DomainNodes = {
-  "地理": [
-    { id: "1", name: "日本の都道府県と県庁所在地", mastery: 80, attempts: 40, domain: "地理" },
-    { id: "2", name: "日本の地方区分（8地方区分）", mastery: 75, attempts: 35, domain: "地理" },
-    { id: "3", name: "日本の主要山地・山脈・山岳", mastery: 68, attempts: 30, domain: "地理" },
-    { id: "4", name: "日本の主要河川と流域", mastery: 65, attempts: 28, domain: "地理" },
-    { id: "5", name: "日本の主要平野と盆地", mastery: 62, attempts: 25, domain: "地理" },
-    { id: "6", name: "日本の気候区分", mastery: 58, attempts: 32, domain: "地理" },
-    { id: "7", name: "季節風と降水量の分布", mastery: 55, attempts: 20, domain: "地理" },
-    { id: "8", name: "農業地域の特徴（稲作・畑作・酪農）", mastery: 52, attempts: 22, domain: "地理" },
-    { id: "9", name: "漁業の種類と漁場", mastery: 48, attempts: 18, domain: "地理" },
-    { id: "10", name: "工業地域の特徴（太平洋ベルトなど）", mastery: 45, attempts: 25, domain: "地理" },
-  ],
-  "歴史": [
-    { id: "26", name: "旧石器時代と縄文時代の暮らし", mastery: 70, attempts: 30, domain: "歴史" },
-    { id: "27", name: "弥生時代と稲作の伝来", mastery: 65, attempts: 28, domain: "歴史" },
-    { id: "28", name: "古墳時代と大和政権", mastery: 62, attempts: 25, domain: "歴史" },
-    { id: "29", name: "飛鳥時代と大化の改新", mastery: 58, attempts: 22, domain: "歴史" },
-    { id: "30", name: "奈良時代と平城京", mastery: 55, attempts: 20, domain: "歴史" },
-    { id: "31", name: "平安時代の貴族文化", mastery: 52, attempts: 18, domain: "歴史" },
-    { id: "32", name: "鎌倉時代と武士の台頭", mastery: 48, attempts: 25, domain: "歴史" },
-    { id: "33", name: "室町時代と戦国時代", mastery: 45, attempts: 22, domain: "歴史" },
-    { id: "34", name: "安土桃山時代と天下統一", mastery: 42, attempts: 20, domain: "歴史" },
-    { id: "35", name: "江戸時代の政治と身分制度", mastery: 40, attempts: 18, domain: "歴史" },
-  ],
-  "公民": [
-    { id: "51", name: "日本国憲法の三大原則", mastery: 75, attempts: 35, domain: "公民" },
-    { id: "52", name: "基本的人権の種類", mastery: 70, attempts: 32, domain: "公民" },
-    { id: "53", name: "三権分立の仕組み", mastery: 65, attempts: 30, domain: "公民" },
-    { id: "54", name: "国会の役割と仕組み", mastery: 62, attempts: 28, domain: "公民" },
-    { id: "55", name: "内閣の役割と行政機関", mastery: 58, attempts: 25, domain: "公民" },
-    { id: "56", name: "裁判所の役割", mastery: 55, attempts: 22, domain: "公民" },
-    { id: "57", name: "地方自治と住民参加", mastery: 52, attempts: 20, domain: "公民" },
-    { id: "58", name: "選挙制度と政治参加", mastery: 48, attempts: 18, domain: "公民" },
-    { id: "59", name: "政党と政治資金", mastery: 45, attempts: 15, domain: "公民" },
-    { id: "60", name: "国際連合と国際協力", mastery: 42, attempts: 12, domain: "公民" },
-  ]
-};
-
-const socialEdgesByDomain: DomainEdges = {
-  "地理": [
-    { from: "1", to: "2" },
-    { from: "2", to: "3" },
-    { from: "3", to: "4" },
-    { from: "4", to: "5" },
-    { from: "5", to: "6" },
-    { from: "6", to: "7" },
-    { from: "7", to: "8" },
-    { from: "8", to: "9" },
-    { from: "9", to: "10" },
-  ],
-  "歴史": [
-    { from: "26", to: "27" },
-    { from: "27", to: "28" },
-    { from: "28", to: "29" },
-    { from: "29", to: "30" },
-    { from: "30", to: "31" },
-    { from: "31", to: "32" },
-    { from: "32", to: "33" },
-    { from: "33", to: "34" },
-    { from: "34", to: "35" },
-  ],
-  "公民": [
-    { from: "51", to: "52" },
-    { from: "52", to: "53" },
-    { from: "53", to: "54" },
-    { from: "54", to: "55" },
-    { from: "55", to: "56" },
-    { from: "56", to: "57" },
-    { from: "57", to: "58" },
-    { from: "58", to: "59" },
-    { from: "59", to: "60" },
-  ]
-};
 
 function masteryColor(m: number){
   if(m < 60) return "bg-red-100 text-red-700 border-red-300";
@@ -521,40 +289,36 @@ export default function App(){
   // 依存関係データをWeakNodeとWeakEdgeに変換
   const { nodes, edges } = useMemo(() => {
     if (dependencyData.length === 0) {
-      // サンプルデータを使用（科目別・domain別）
-      switch (currentSubject) {
-        case "japanese":
-          return { 
-            nodes: japaneseNodesByDomain[currentDomain] || japaneseNodesByDomain["漢字・語彙"], 
-            edges: japaneseEdgesByDomain[currentDomain] || japaneseEdgesByDomain["漢字・語彙"] 
-          };
-        case "science":
-          return { 
-            nodes: scienceNodesByDomain[currentDomain] || scienceNodesByDomain["物理"], 
-            edges: scienceEdgesByDomain[currentDomain] || scienceEdgesByDomain["物理"] 
-          };
-        case "social":
-          return { 
-            nodes: socialNodesByDomain[currentDomain] || socialNodesByDomain["地理"], 
-            edges: socialEdgesByDomain[currentDomain] || socialEdgesByDomain["地理"] 
-          };
-        case "math":
-        default:
-          return { 
-            nodes: mathNodesByDomain[currentDomain] || mathNodesByDomain["数と計算"], 
-            edges: mathEdgesByDomain[currentDomain] || mathEdgesByDomain["数と計算"] 
-          };
-      }
+      // フォールバックデータを使用
+      return { 
+        nodes: fallbackNodesByDomain[currentDomain] || fallbackNodesByDomain["数と計算"], 
+        edges: fallbackEdgesByDomain[currentDomain] || fallbackEdgesByDomain["数と計算"] 
+      };
     }
 
+    // データベースから取得したデータをdomain別にグループ化
+    const nodesByDomain: DomainNodes = {};
+    const edgesByDomain: DomainEdges = {};
+
     // データベースデータを変換
-    const nodes: WeakNode[] = dependencyData.map((item, index) => ({
+    const nodes: WeakNode[] = dependencyData.map((item) => ({
       id: item.id.toString(),
       name: item.name,
       mastery: Math.floor(Math.random() * 100), // 仮のデータ（実際はAPIから取得）
-      attempts: Math.floor(Math.random() * 30) + 10
+      attempts: Math.floor(Math.random() * 30) + 10,
+      domain: item.domain || "その他"
     }));
 
+    // domain別にグループ化
+    nodes.forEach((node) => {
+      const domain = node.domain || "その他";
+      if (!nodesByDomain[domain]) {
+        nodesByDomain[domain] = [];
+      }
+      nodesByDomain[domain].push(node);
+    });
+
+    // 依存関係を構築
     const edges: WeakEdge[] = [];
     dependencyData.forEach((item) => {
       if (item.prerequisites) {
@@ -567,7 +331,27 @@ export default function App(){
       }
     });
 
-    return { nodes, edges };
+    // domain別にエッジをグループ化
+    edges.forEach((edge) => {
+      const fromNode = nodes.find(n => n.id === edge.from);
+      const toNode = nodes.find(n => n.id === edge.to);
+      if (fromNode && toNode) {
+        const domain = fromNode.domain || "その他";
+        if (!edgesByDomain[domain]) {
+          edgesByDomain[domain] = [];
+        }
+        edgesByDomain[domain].push(edge);
+      }
+    });
+
+    // 現在のdomainのデータを返す
+    const currentDomainNodes = nodesByDomain[currentDomain] || nodesByDomain["その他"] || [];
+    const currentDomainEdges = edgesByDomain[currentDomain] || edgesByDomain["その他"] || [];
+
+    return { 
+      nodes: currentDomainNodes, 
+      edges: currentDomainEdges 
+    };
   }, [dependencyData, currentSubject, currentDomain]);
 
   const getSubjectName = (subject: string) => {
@@ -582,17 +366,29 @@ export default function App(){
 
   // 科目別のdomain一覧を取得
   const getDomainsForSubject = (subject: string) => {
+    if (dependencyData.length > 0) {
+      // データベースから取得したデータからdomain一覧を取得
+      const domains = new Set<string>();
+      dependencyData.forEach((item) => {
+        if (item.domain) {
+          domains.add(item.domain);
+        }
+      });
+      return Array.from(domains);
+    }
+    
+    // フォールバック用のdomain一覧
     switch (subject) {
       case "japanese":
-        return Object.keys(japaneseNodesByDomain);
+        return ["漢字・語彙", "文法", "読解", "作文"];
       case "science":
-        return Object.keys(scienceNodesByDomain);
+        return ["物理", "化学", "生物", "地学"];
       case "social":
-        return Object.keys(socialNodesByDomain);
+        return ["地理", "歴史", "公民"];
       case "math":
-        return Object.keys(mathNodesByDomain);
+        return ["数と計算", "数量関係", "図形", "量と測定"];
       default:
-        return Object.keys(mathNodesByDomain);
+        return ["数と計算", "数量関係", "図形", "量と測定"];
     }
   };
 
@@ -777,7 +573,8 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
       id: item.id.toString(),
       name: item.name,
       mastery: Math.floor(Math.random() * 100), // 仮のデータ（実際はAPIから取得）
-      attempts: Math.floor(Math.random() * 30) + 10
+      attempts: Math.floor(Math.random() * 30) + 10,
+      domain: item.domain
     }));
 
     const edges: WeakEdge[] = [];

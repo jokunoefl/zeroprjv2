@@ -965,8 +965,9 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                     "id": dep.id,
                     "name": dep.topic_name,
                     "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
-                    "dependencies": [dep.next_topic] if dep.next_topic else [],
-                    "subject": "math"
+                    "dependencies": [],
+                    "subject": "math",
+                    "domain": dep.domain
                 }
                 for dep in dependencies
             ]
@@ -1015,7 +1016,8 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
                     "name": dep.topic_name,
                     "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
                     "dependencies": [],
-                    "subject": "math"
+                    "subject": "math",
+                    "domain": dep.domain
                 }
             
             # レベルを計算
