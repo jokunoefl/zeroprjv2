@@ -1235,4 +1235,21 @@ def run_migration(db: Session = Depends(get_db)):
         print(f"❌ Migration failed: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/list-all-tables")
+def list_all_tables(db: Session = Depends(get_db)):
+    """データベース内の全テーブル一覧を取得するエンドポイント"""
+    from sqlalchemy import text
+    try:
+        # PostgreSQLの場合、information_schema.tablesを使用
+        result = db.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            ORDER BY table_name
+        """))
+        tables = [row[0] for row in result.fetchall()]
+        return {"tables": tables, "count": len(tables)}
+    except Exception as e:
+        return {"error": f"Failed to list tables: {str(e)}"}
+
 
