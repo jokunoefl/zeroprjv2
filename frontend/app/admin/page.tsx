@@ -53,9 +53,12 @@ export default function AdminPage() {
   // APIベースURLを取得
   const getApiBase = useCallback(() => {
     if (typeof window !== 'undefined') {
-      return (window as { API_BASE?: string }).API_BASE || 'http://localhost:8000';
+      // 本番環境ではNEXT_PUBLIC_API_BASE環境変数を使用
+      return (window as { API_BASE?: string }).API_BASE || 
+             process.env.NEXT_PUBLIC_API_BASE || 
+             'https://zerobasics-backend.onrender.com';
     }
-    return 'http://localhost:8000';
+    return process.env.NEXT_PUBLIC_API_BASE || 'https://zerobasics-backend.onrender.com';
   }, []);
 
   // データベースから単元データを取得
