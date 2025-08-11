@@ -1036,25 +1036,14 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                 print("Querying math dependencies with direct SQL...")
                 from sqlalchemy import text
                 
-                # 直接SQLでデータを取得
-                result_sql = db.execute(text("SELECT id, topic_name, prerequisite_topics, topic_id FROM math_dependencies"))
+                # 直接SQLでデータを取得（ドメインも含める）
+                result_sql = db.execute(text('SELECT id, topic_name, prerequisite_topics, topic_id, "Domain" FROM math_dependencies'))
                 dependencies_data = result_sql.fetchall()
                 print(f"Found {len(dependencies_data)} math dependencies with direct SQL")
                 
                 result = []
                 for row in dependencies_data:
-                    id_val, topic_name, prerequisite_topics, topic_id = row
-                    
-                    # ドメインを取得（大文字のDomainカラムを使用）
-                    domain = '未分類'
-                    try:
-                        domain_result = db.execute(text('SELECT "Domain" FROM math_dependencies WHERE id = :id'), {"id": id_val})
-                        domain_row = domain_result.fetchone()
-                        if domain_row:
-                            domain = domain_row[0] or '未分類'
-                    except Exception as e:
-                        print(f"Error getting domain for id {id_val}: {e}")
-                        domain = '未分類'
+                    id_val, topic_name, prerequisite_topics, topic_id, domain = row
                     
                     result.append({
                         "id": id_val,
@@ -1062,7 +1051,7 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                         "prerequisites": prerequisite_topics.split(';') if prerequisite_topics else [],
                         "dependencies": [],
                         "subject": "math",
-                        "domain": domain
+                        "domain": domain or '未分類'
                     })
                 
                 print(f"Returning {len(result)} math topics")
