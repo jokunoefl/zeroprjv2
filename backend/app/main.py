@@ -1033,42 +1033,38 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
     try:
         if subject.lower() == "math":
             try:
-                print("Querying math dependencies...")
-                dependencies = db.query(MathDependency).all()
-                print(f"Found {len(dependencies)} math dependencies")
+                print("Querying math dependencies with direct SQL...")
+                from sqlalchemy import text
                 
-                # デバッグ情報を追加
-                if len(dependencies) > 0:
-                    first_dep = dependencies[0]
-                    print(f"First dependency: id={first_dep.id}, topic_name={first_dep.topic_name}")
-                    print(f"Available attributes: {dir(first_dep)}")
+                # 直接SQLでデータを取得
+                result_sql = db.execute(text("SELECT id, topic_name, prerequisite_topics, topic_id FROM math_dependencies"))
+                dependencies_data = result_sql.fetchall()
+                print(f"Found {len(dependencies_data)} math dependencies with direct SQL")
                 
                 result = []
-                for dep in dependencies:
-                    # 本番環境のデータベース構造に合わせてドメインを取得
+                for row in dependencies_data:
+                    id_val, topic_name, prerequisite_topics, topic_id = row
+                    
+                    # ドメインを取得（カラムが存在するかチェック）
                     domain = '未分類'
                     try:
-                        # 小文字のdomainを試す
-                        domain = getattr(dep, 'domain', '未分類')
-                        print(f"Found domain (lowercase): {domain}")
+                        domain_result = db.execute(text("SELECT Domain FROM math_dependencies WHERE id = :id"), {"id": id_val})
+                        domain_row = domain_result.fetchone()
+                        if domain_row:
+                            domain = domain_row[0] or '未分類'
                     except Exception as e:
-                        print(f"Error getting domain (lowercase): {e}")
-                        try:
-                            # 大文字のDomainを試す
-                            domain = getattr(dep, 'Domain', '未分類')
-                            print(f"Found Domain (uppercase): {domain}")
-                        except Exception as e2:
-                            print(f"Error getting Domain (uppercase): {e2}")
-                            domain = '未分類'
+                        print(f"Error getting domain for id {id_val}: {e}")
+                        domain = '未分類'
                     
                     result.append({
-                        "id": dep.id,
-                        "name": dep.topic_name,
-                        "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
+                        "id": id_val,
+                        "name": topic_name,
+                        "prerequisites": prerequisite_topics.split(';') if prerequisite_topics else [],
                         "dependencies": [],
                         "subject": "math",
                         "domain": domain
                     })
+                
                 print(f"Returning {len(result)} math topics")
                 return result
             except Exception as e:
