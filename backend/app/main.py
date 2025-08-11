@@ -991,8 +991,10 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
     try:
         if subject.lower() == "math":
             dependencies = db.query(MathDependency).all()
-            return [
-                {
+            # 依存関係を構築
+            dependency_map = {}
+            for dep in dependencies:
+                dependency_map[dep.topic_name] = {
                     "id": dep.id,
                     "name": dep.topic_name,
                     "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
@@ -1000,34 +1002,66 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                     "subject": "math",
                     "domain": dep.domain
                 }
-                for dep in dependencies
-            ]
+            
+            # 依存関係を構築（前提→後続の関係）
+            for dep in dependencies:
+                if dep.prerequisite_topic and dep.prerequisite_topic in dependency_map:
+                    dependency_map[dep.prerequisite_topic]["dependencies"].append(dep.topic_name)
+            
+            return list(dependency_map.values())
+            
         elif subject.lower() == "science":
             dependencies = db.query(ScienceDependency).all()
-            return [
-                {
+            # 依存関係を構築
+            dependency_map = {}
+            for dep in dependencies:
+                prereqs = dep.prerequisite_topics.split(';') if dep.prerequisite_topics else []
+                prereqs = [p.strip() for p in prereqs if p.strip()]
+                dependency_map[dep.topic_name] = {
                     "id": dep.id,
                     "name": dep.topic_name,
-                    "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
-                    "dependencies": dep.next_topics.split(';') if dep.next_topics else [],
+                    "prerequisites": prereqs,
+                    "dependencies": [],
                     "subject": "science",
                     "domain": dep.domain
                 }
-                for dep in dependencies
-            ]
+            
+            # 依存関係を構築（前提→後続の関係）
+            for dep in dependencies:
+                if dep.prerequisite_topics:
+                    prereqs = [p.strip() for p in dep.prerequisite_topics.split(';') if p.strip()]
+                    for prereq in prereqs:
+                        if prereq in dependency_map:
+                            dependency_map[prereq]["dependencies"].append(dep.topic_name)
+            
+            return list(dependency_map.values())
+            
         elif subject.lower() == "social":
             dependencies = db.query(SocialDependency).all()
-            return [
-                {
+            # 依存関係を構築
+            dependency_map = {}
+            for dep in dependencies:
+                prereqs = dep.prerequisite_topics.split(';') if dep.prerequisite_topics else []
+                prereqs = [p.strip() for p in prereqs if p.strip()]
+                dependency_map[dep.topic_name] = {
                     "id": dep.id,
                     "name": dep.topic_name,
-                    "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
+                    "prerequisites": prereqs,
                     "dependencies": [],
                     "subject": "social",
                     "domain": dep.domain
                 }
-                for dep in dependencies
-            ]
+            
+            # 依存関係を構築（前提→後続の関係）
+            for dep in dependencies:
+                if dep.prerequisite_topics:
+                    prereqs = [p.strip() for p in dep.prerequisite_topics.split(';') if p.strip()]
+                    for prereq in prereqs:
+                        if prereq in dependency_map:
+                            dependency_map[prereq]["dependencies"].append(dep.topic_name)
+            
+            return list(dependency_map.values())
+            
         else:
             raise HTTPException(status_code=400, detail=f"Invalid subject: {subject}")
     except Exception as e:
