@@ -1036,6 +1036,13 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                 print("Querying math dependencies...")
                 dependencies = db.query(MathDependency).all()
                 print(f"Found {len(dependencies)} math dependencies")
+                
+                # デバッグ情報を追加
+                if len(dependencies) > 0:
+                    first_dep = dependencies[0]
+                    print(f"First dependency: id={first_dep.id}, topic_name={first_dep.topic_name}")
+                    print(f"Available attributes: {dir(first_dep)}")
+                
                 result = []
                 for dep in dependencies:
                     # 本番環境のデータベース構造に合わせてドメインを取得
@@ -1043,11 +1050,15 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                     try:
                         # 小文字のdomainを試す
                         domain = getattr(dep, 'domain', '未分類')
-                    except:
+                        print(f"Found domain (lowercase): {domain}")
+                    except Exception as e:
+                        print(f"Error getting domain (lowercase): {e}")
                         try:
                             # 大文字のDomainを試す
                             domain = getattr(dep, 'Domain', '未分類')
-                        except:
+                            print(f"Found Domain (uppercase): {domain}")
+                        except Exception as e2:
+                            print(f"Error getting Domain (uppercase): {e2}")
                             domain = '未分類'
                     
                     result.append({
@@ -1062,6 +1073,8 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                 return result
             except Exception as e:
                 print(f"Error querying math dependencies: {e}")
+                import traceback
+                traceback.print_exc()
                 return []
         elif subject.lower() == "science":
             try:
