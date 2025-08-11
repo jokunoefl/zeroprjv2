@@ -154,12 +154,6 @@ function WeaknessDetail({ node, onStart, subject = "math" }:{ node: WeakNode | n
   // 科目別のミス傾向とトピックを設定
   const getMistakeChips = (nodeName: string, subject: string) => {
     switch (subject) {
-      case "japanese":
-        if (nodeName.includes("漢字")) return ["読み間違い", "書き間違い", "同音異義語"];
-        if (nodeName.includes("文法")) return ["品詞の識別", "文の成分", "敬語の使い方"];
-        if (nodeName.includes("読解")) return ["指示語の内容", "接続語の働き", "要旨の把握"];
-        if (nodeName.includes("作文")) return ["文章の構成", "段落の書き方", "敬語の使い分け"];
-        return ["語彙力", "理解力", "表現力"];
       case "science":
         if (nodeName.includes("光")) return ["作図ミス", "反射・屈折の理解", "レンズの性質"];
         if (nodeName.includes("音")) return ["波の性質", "伝わり方", "高さ・大きさ"];
@@ -182,12 +176,6 @@ function WeaknessDetail({ node, onStart, subject = "math" }:{ node: WeakNode | n
 
   const getTopic = (nodeName: string, subject: string) => {
     switch (subject) {
-      case "japanese":
-        if (nodeName.includes("漢字")) return "漢字";
-        if (nodeName.includes("文法")) return "文法";
-        if (nodeName.includes("読解")) return "読解";
-        if (nodeName.includes("作文")) return "作文";
-        return "国語";
       case "science":
         if (nodeName.includes("光") || nodeName.includes("音") || nodeName.includes("電流") || nodeName.includes("力")) return "物理";
         if (nodeName.includes("状態") || nodeName.includes("物質") || nodeName.includes("水溶液")) return "化学";
@@ -345,7 +333,6 @@ export default function App(){
 
   const getSubjectName = (subject: string) => {
     switch (subject) {
-      case "japanese": return "理解（国語）";
       case "science": return "理科";
       case "social": return "社会";
       case "math": return "算数";
@@ -368,8 +355,6 @@ export default function App(){
     
     // フォールバック用のdomain一覧
     switch (subject) {
-      case "japanese":
-        return ["漢字・語彙", "文法", "読解", "作文"];
       case "science":
         return ["物理", "化学", "生物", "地学"];
       case "social":
@@ -419,12 +404,7 @@ export default function App(){
           >
             算数
           </button>
-          <button 
-            className={`px-3 py-1 rounded-lg text-sm ${currentSubject === "japanese" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}
-            onClick={() => setCurrentSubject("japanese")}
-          >
-            理解
-          </button>
+
           <button 
             className={`px-3 py-1 rounded-lg text-sm ${currentSubject === "science" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}
             onClick={() => setCurrentSubject("science")}

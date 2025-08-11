@@ -27,7 +27,6 @@ interface ApiResponse {
 // 科目の定義
 const SUBJECTS = [
   { id: "math", name: "算数" },
-  { id: "japanese", name: "理解（国語）" },
   { id: "science", name: "理科" },
   { id: "social", name: "社会" }
 ];
@@ -35,7 +34,6 @@ const SUBJECTS = [
 // 科目別のdomainオプション（動的に取得するため初期値は空）
 const DOMAIN_OPTIONS = {
   math: [],
-  japanese: [],
   science: [],
   social: []
 };
@@ -720,26 +718,12 @@ export default function AdminPage() {
               <div className="space-y-4">
                 {filteredTopics.map(topic => (
                   <div key={topic.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 mb-1">{topic.name}</h3>
-                        <DomainEditor topic={topic} />
+                                          <div className="mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900 mb-1">{topic.name}</h3>
+                          <DomainEditor topic={topic} />
+                        </div>
                       </div>
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() => handleEditTopic(topic)}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
-                        >
-                          編集
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTopic(topic.id)}
-                          className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
-                        >
-                          削除
-                        </button>
-                      </div>
-                    </div>
                     
                     {/* 前提条件 */}
                     <div className="mb-3">
