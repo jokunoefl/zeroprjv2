@@ -895,22 +895,10 @@ def get_learning_path(topic_name: str, db: Session = Depends(get_db)):
         else:
             break
     
-    # 次に学ぶ単元を取得
-    next_topics = []
-    current_topic = dependency.next_topic
-    while current_topic:
-        next_dep = db.query(MathDependency).filter(MathDependency.topic_name == current_topic).first()
-        if next_dep:
-            next_topics.append(current_topic)
-            current_topic = next_dep.next_topic
-        else:
-            break
-    
     return {
         "prerequisites": prerequisites,
         "target_topic": topic_name,
-        "next_topics": next_topics,
-        "learning_path": prerequisites + [topic_name] + next_topics
+        "learning_path": prerequisites + [topic_name]
     }
 
 # 理科の学習依存関係を活用したAPI
@@ -959,22 +947,11 @@ def get_science_learning_path(topic_name: str, db: Session = Depends(get_db)):
             if prereq_dep:
                 all_prerequisites.append(prereq_topic)
     
-    # 次に学ぶ単元を取得（複数対応）
-    all_next_topics = []
-    if dependency.next_topics:
-        next_topics = [t.strip() for t in dependency.next_topics.split(";") if t.strip()]
-        
-        for next_topic in next_topics:
-            next_dep = db.query(ScienceDependency).filter(ScienceDependency.topic_name == next_topic).first()
-            if next_dep:
-                all_next_topics.append(next_topic)
-    
     return {
         "prerequisites": all_prerequisites,
         "target_topic": topic_name,
         "domain": dependency.domain,
-        "next_topics": all_next_topics,
-        "learning_path": all_prerequisites + [topic_name] + all_next_topics
+        "learning_path": all_prerequisites + [topic_name]
     }
 
 @app.get("/dependencies/{subject}")
@@ -1013,7 +990,7 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                     "id": dep.id,
                     "name": dep.topic_name,
                     "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
-                    "dependencies": dep.next_topics.split(';') if dep.next_topics else [],
+                    "dependencies": [],
                     "subject": "social",
                     "domain": dep.domain
                 }
@@ -1037,7 +1014,7 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
                     "id": dep.id,
                     "name": dep.topic_name,
                     "prerequisites": [dep.prerequisite_topic] if dep.prerequisite_topic else [],
-                    "dependencies": [dep.next_topic] if dep.next_topic else [],
+                    "dependencies": [],
                     "subject": "math"
                 }
             
@@ -1071,12 +1048,11 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
             dependency_map = {}
             for dep in dependencies:
                 prereqs = dep.prerequisite_topics.split(';') if dep.prerequisite_topics else []
-                deps = dep.next_topics.split(';') if dep.next_topics else []
                 dependency_map[dep.topic_name] = {
                     "id": dep.id,
                     "name": dep.topic_name,
                     "prerequisites": prereqs,
-                    "dependencies": deps,
+                    "dependencies": [],
                     "subject": "science",
                     "domain": dep.domain
                 }
@@ -1113,12 +1089,11 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
             dependency_map = {}
             for dep in dependencies:
                 prereqs = dep.prerequisite_topics.split(';') if dep.prerequisite_topics else []
-                deps = dep.next_topics.split(';') if dep.next_topics else []
                 dependency_map[dep.topic_name] = {
                     "id": dep.id,
                     "name": dep.topic_name,
                     "prerequisites": prereqs,
-                    "dependencies": deps,
+                    "dependencies": [],
                     "subject": "social",
                     "domain": dep.domain
                 }

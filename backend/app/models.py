@@ -86,7 +86,6 @@ class MathDependency(Base):
     id: Mapped[int] = Column(Integer, primary_key=True)
     topic_name: Mapped[str] = Column(String(255), nullable=False)  # 単元名
     prerequisite_topic: Mapped[Optional[str]] = Column(String(255), nullable=True)  # 前提単元（NULL=前提なし）
-    next_topic: Mapped[Optional[str]] = Column(String(255), nullable=True)  # 次に学ぶ単元（NULL=最終単元）
     topic_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("math_topics.id"), nullable=True)  # math_topicsとの紐付け
 
     # リレーション
@@ -98,7 +97,6 @@ class ScienceDependency(Base):
     domain: Mapped[str] = Column(String(32), nullable=False)  # 物理/化学/生物/地学/総合
     topic_name: Mapped[str] = Column(String(255), nullable=False)  # 単元名
     prerequisite_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 前提単元（セミコロン区切り、NULL=前提なし）
-    next_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 次に学ぶ単元（セミコロン区切り、NULL=最終単元）
     topic_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("science_topics.id"), nullable=True)  # science_topicsとの紐付け
 
     # リレーション
@@ -116,7 +114,6 @@ class SocialDependency(Base):
     domain: Mapped[str] = Column(String(32), nullable=False)  # 地理/歴史/公民/総合
     topic_name: Mapped[str] = Column(String(255), nullable=False)  # 単元名
     prerequisite_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 前提単元（セミコロン区切り、NULL=前提なし）
-    next_topics: Mapped[Optional[str]] = Column(Text, nullable=True)  # 次に学ぶ単元（セミコロン区切り、NULL=最終単元）
     topic_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("social_topics.id"), nullable=True)  # social_topicsとの紐付け
 
     # リレーション
