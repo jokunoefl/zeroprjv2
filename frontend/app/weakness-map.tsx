@@ -1,19 +1,8 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 // ====== 既存：汎用GET API関数・取得ユーティリティ ======
-interface ApiResponse {
-  id?: number;
-  subject?: string;
-  topic?: string;
-  text?: string;
-  hint?: string;
-  correct?: string;
-  unit?: string;
-  ok?: boolean;
-}
-
 interface WindowWithAPI extends Window {
   API_BASE?: string;
   AUTH_TOKEN?: string;
@@ -352,7 +341,7 @@ export default function App(){
       nodes: currentDomainNodes, 
       edges: currentDomainEdges 
     };
-  }, [dependencyData, currentSubject, currentDomain]);
+  }, [dependencyData, currentDomain]);
 
   const getSubjectName = (subject: string) => {
     switch (subject) {
@@ -365,7 +354,7 @@ export default function App(){
   };
 
   // 科目別のdomain一覧を取得
-  const getDomainsForSubject = (subject: string) => {
+  const getDomainsForSubject = useCallback((subject: string) => {
     if (dependencyData.length > 0) {
       // データベースから取得したデータからdomain一覧を取得
       const domains = new Set<string>();
@@ -390,7 +379,7 @@ export default function App(){
       default:
         return ["数と計算", "数量関係", "図形", "量と測定"];
     }
-  };
+  }, [dependencyData]);
 
   // 科目が変更されたときに適切なdomainを設定
   useEffect(() => {
@@ -398,7 +387,7 @@ export default function App(){
     if (domains.length > 0 && !domains.includes(currentDomain)) {
       setCurrentDomain(domains[0]);
     }
-  }, [currentSubject, currentDomain]);
+  }, [currentSubject, currentDomain, getDomainsForSubject]);
 
   const startQuickPack = async (topic?: string)=>{
     setLastPack(topic||"計算");
@@ -590,7 +579,7 @@ export function WeaknessMapComponent({ data, onNodeClick, onStartPractice, subje
     });
 
     return { nodes, edges };
-  }, [dependencyData, data, subject]);
+  }, [dependencyData, data]);
 
   const [selected, setSelected] = useState<WeakNode|null>(null);
   const [lastPack, setLastPack] = useState<string|undefined>(undefined);

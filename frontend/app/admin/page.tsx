@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 // 単元データの型定義
@@ -51,15 +51,15 @@ export default function AdminPage() {
   const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
 
   // APIベースURLを取得
-  const getApiBase = () => {
+  const getApiBase = useCallback(() => {
     if (typeof window !== 'undefined') {
-      return (window as any).API_BASE || 'http://localhost:8000';
+      return (window as { API_BASE?: string }).API_BASE || 'http://localhost:8000';
     }
     return 'http://localhost:8000';
-  };
+  }, []);
 
   // データベースから単元データを取得
-  const fetchTopics = async (subject: string) => {
+  const fetchTopics = useCallback(async (subject: string) => {
     try {
       setLoading(true);
       const response = await fetch(`${getApiBase()}/dependencies/${subject}`);
@@ -84,12 +84,12 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getApiBase]);
 
   // 科目が変更されたときにデータを再取得
   useEffect(() => {
     fetchTopics(selectedSubject);
-  }, [selectedSubject]);
+  }, [selectedSubject, fetchTopics]);
 
   // 科目別のトピックをフィルタリング
   const filteredTopics = topics.filter(topic => 
