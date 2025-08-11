@@ -1036,17 +1036,28 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                 print("Querying math dependencies...")
                 dependencies = db.query(MathDependency).all()
                 print(f"Found {len(dependencies)} math dependencies")
-                result = [
-                    {
+                result = []
+                for dep in dependencies:
+                    # 本番環境のデータベース構造に合わせてドメインを取得
+                    domain = '未分類'
+                    try:
+                        # 小文字のdomainを試す
+                        domain = getattr(dep, 'domain', '未分類')
+                    except:
+                        try:
+                            # 大文字のDomainを試す
+                            domain = getattr(dep, 'Domain', '未分類')
+                        except:
+                            domain = '未分類'
+                    
+                    result.append({
                         "id": dep.id,
                         "name": dep.topic_name,
                         "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
                         "dependencies": [],
                         "subject": "math",
-                        "domain": getattr(dep, 'domain', '未分類')  # domainフィールドが存在しない場合の対応
-                    }
-                    for dep in dependencies
-                ]
+                        "domain": domain
+                    })
                 print(f"Returning {len(result)} math topics")
                 return result
             except Exception as e:
@@ -1055,34 +1066,58 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
         elif subject.lower() == "science":
             try:
                 dependencies = db.query(ScienceDependency).all()
-                return [
-                    {
+                result = []
+                for dep in dependencies:
+                    # 本番環境のデータベース構造に合わせてドメインを取得
+                    domain = '未分類'
+                    try:
+                        # 小文字のdomainを試す
+                        domain = getattr(dep, 'domain', '未分類')
+                    except:
+                        try:
+                            # 大文字のDomainを試す
+                            domain = getattr(dep, 'Domain', '未分類')
+                        except:
+                            domain = '未分類'
+                    
+                    result.append({
                         "id": dep.id,
                         "name": dep.topic_name,
                         "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
                         "dependencies": [],
                         "subject": "science",
-                        "domain": getattr(dep, 'domain', '未分類')
-                    }
-                    for dep in dependencies
-                ]
+                        "domain": domain
+                    })
+                return result
             except Exception as e:
                 print(f"Error querying science dependencies: {e}")
                 return []
         elif subject.lower() == "social":
             try:
                 dependencies = db.query(SocialDependency).all()
-                return [
-                    {
+                result = []
+                for dep in dependencies:
+                    # 本番環境のデータベース構造に合わせてドメインを取得
+                    domain = '未分類'
+                    try:
+                        # 小文字のdomainを試す
+                        domain = getattr(dep, 'domain', '未分類')
+                    except:
+                        try:
+                            # 大文字のDomainを試す
+                            domain = getattr(dep, 'Domain', '未分類')
+                        except:
+                            domain = '未分類'
+                    
+                    result.append({
                         "id": dep.id,
                         "name": dep.topic_name,
                         "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
                         "dependencies": [],
                         "subject": "social",
-                        "domain": getattr(dep, 'domain', '未分類')
-                    }
-                    for dep in dependencies
-                ]
+                        "domain": domain
+                    })
+                return result
             except Exception as e:
                 print(f"Error querying social dependencies: {e}")
                 return []
