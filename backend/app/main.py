@@ -1128,4 +1128,44 @@ def get_dependency_flow(subject: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/migrate")
+def run_migration(db: Session = Depends(get_db)):
+    """本番環境でマイグレーションを実行するエンドポイント"""
+    try:
+        from migrate import remove_next_topics_columns, create_tables, seed_database
+        
+        print("🚀 Starting production migration...")
+        
+        # Step 1: Remove next_topics columns
+        if remove_next_topics_columns():
+            print("✅ next_topics columns removed successfully")
+        else:
+            print("⚠️  Failed to remove next_topics columns, but continuing...")
+        
+        # Step 2: Create tables
+        if create_tables():
+            print("✅ Tables created successfully")
+        else:
+            print("❌ Failed to create tables")
+            return {"status": "error", "message": "Failed to create tables"}
+        
+        # Step 3: Seed database
+        try:
+            seed_database()
+            print("✅ Database seeded successfully")
+        except Exception as e:
+            print(f"⚠️  Seeding failed: {e}")
+            return {"status": "warning", "message": f"Migration completed but seeding failed: {str(e)}"}
+        
+        print("🎉 Production migration completed successfully!")
+        return {
+            "status": "success", 
+            "message": "Migration completed successfully",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"❌ Migration failed: {e}")
+        return {"status": "error", "message": str(e)}
+
 
