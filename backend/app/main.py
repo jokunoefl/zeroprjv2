@@ -346,6 +346,48 @@ def check_tables(db: Session = Depends(get_db)):
     except Exception:
         tables["users"] = "missing"
     
+    try:
+        # Check math_dependencies table
+        db.execute(text("SELECT 1 FROM math_dependencies LIMIT 1"))
+        tables["math_dependencies"] = "exists"
+    except Exception:
+        tables["math_dependencies"] = "missing"
+    
+    try:
+        # Check science_dependencies table
+        db.execute(text("SELECT 1 FROM science_dependencies LIMIT 1"))
+        tables["science_dependencies"] = "exists"
+    except Exception:
+        tables["science_dependencies"] = "missing"
+    
+    try:
+        # Check social_dependencies table
+        db.execute(text("SELECT 1 FROM social_dependencies LIMIT 1"))
+        tables["social_dependencies"] = "missing"
+    except Exception:
+        tables["social_dependencies"] = "missing"
+    
+    try:
+        # Check math_topics table
+        db.execute(text("SELECT 1 FROM math_topics LIMIT 1"))
+        tables["math_topics"] = "exists"
+    except Exception:
+        tables["math_topics"] = "missing"
+    
+    try:
+        # Check science_topics table
+        db.execute(text("SELECT 1 FROM science_topics LIMIT 1"))
+        tables["science_topics"] = "exists"
+    except Exception:
+        tables["science_topics"] = "missing"
+    
+    try:
+        # Check social_topics table
+        db.execute(text("SELECT 1 FROM social_topics LIMIT 1"))
+        tables["social_topics"] = "exists"
+    except Exception:
+        tables["social_topics"] = "missing"
+    
     return {"tables": tables}
 
 @app.post("/create-tables-only")
@@ -991,8 +1033,10 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
     try:
         if subject.lower() == "math":
             try:
+                print("Querying math dependencies...")
                 dependencies = db.query(MathDependency).all()
-                return [
+                print(f"Found {len(dependencies)} math dependencies")
+                result = [
                     {
                         "id": dep.id,
                         "name": dep.topic_name,
@@ -1003,6 +1047,8 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                     }
                     for dep in dependencies
                 ]
+                print(f"Returning {len(result)} math topics")
+                return result
             except Exception as e:
                 print(f"Error querying math dependencies: {e}")
                 return []
