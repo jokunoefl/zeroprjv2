@@ -1049,7 +1049,6 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                         "id": id_val,
                         "name": topic_name,
                         "prerequisites": prerequisite_topics.split(';') if prerequisite_topics else [],
-                        "dependencies": [],
                         "subject": "math",
                         "domain": domain or '未分類'
                     })
@@ -1082,7 +1081,6 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                         "id": dep.id,
                         "name": dep.topic_name,
                         "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
-                        "dependencies": [],
                         "subject": "science",
                         "domain": domain
                     })
@@ -1111,7 +1109,6 @@ def get_dependencies(subject: str, db: Session = Depends(get_db)):
                         "id": dep.id,
                         "name": dep.topic_name,
                         "prerequisites": dep.prerequisite_topics.split(';') if dep.prerequisite_topics else [],
-                        "dependencies": [],
                         "subject": "social",
                         "domain": domain
                     })
